@@ -5,11 +5,11 @@ import tempfile
 from pathlib import Path
 
 TEST_DIR = Path(tempfile.mkdtemp(prefix="shelfkeep-test-"))
-os.environ.setdefault("DATABASE_URL", f"sqlite+pysqlite:///{TEST_DIR / 'shelfkeep.db'}")
-os.environ.setdefault("DATA_DIR", str(TEST_DIR))
-os.environ.setdefault("SHELFKEEP_USERNAME", "admin")
-os.environ.setdefault("SHELFKEEP_PASSWORD", "testhook")
-os.environ.setdefault("SESSION_SECRET", "test-secret-not-for-production")
+os.environ["DATABASE_URL"] = f"sqlite+pysqlite:///{TEST_DIR / 'shelfkeep.db'}"
+os.environ["DATA_DIR"] = str(TEST_DIR)
+os.environ["SHELFKEEP_USERNAME"] = "admin"
+os.environ["SHELFKEEP_PASSWORD"] = "testhook"
+os.environ["SESSION_SECRET"] = "test-secret-not-for-production"
 
 import pytest
 from fastapi.testclient import TestClient

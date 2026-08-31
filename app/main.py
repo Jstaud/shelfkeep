@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import time
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -30,6 +31,7 @@ APP_DIR = Path(__file__).resolve().parent
 async def lifespan(_: FastAPI):
     settings.data_dir.mkdir(parents=True, exist_ok=True)
     ensure_dirs()
+    _wait_for_database()
     Base.metadata.create_all(bind=engine)
     _seed_library()
     if settings.using_default_secrets:
@@ -38,6 +40,20 @@ async def lifespan(_: FastAPI):
             "Set SHELFKEEP_PASSWORD and SESSION_SECRET before exposing this instance."
         )
     yield
+
+
+def _wait_for_database(attempts: int = 20) -> None:
+    last_error: Exception | None = None
+    for attempt in range(1, attempts + 1):
+        try:
+            with engine.connect() as conn:
+                conn.execute(text("SELECT 1"))
+            return
+        except Exception as exc:  # noqa: BLE001 - retry any connect failure at boot
+            last_error = exc
+            log.warning("Database not ready (attempt %s/%s): %s", attempt, attempts, exc)
+            time.sleep(1)
+    raise RuntimeError("Could not connect to the database") from last_error
 
 
 def _seed_library() -> None:
