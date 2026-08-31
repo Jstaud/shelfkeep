@@ -11,11 +11,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY app ./app
 
-RUN mkdir -p /data/uploads \
-    && useradd --system --home /srv --shell /usr/sbin/nologin shelfkeep \
-    && chown -R shelfkeep:shelfkeep /data /srv
-
-USER shelfkeep
+RUN mkdir -p /data/uploads
 
 ENV DATA_DIR=/data \
     PYTHONUNBUFFERED=1 \
