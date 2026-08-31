@@ -460,7 +460,7 @@ input, textarea {
 
 #scan-video { width: 100%; background: #000; min-height: 200px; }
 
-@media (max-width: 960px) {
+@media (max-width: 800px) {
   .is-workspace { height: auto; overflow: auto; }
   .is-workspace .panes {
     display: flex;
