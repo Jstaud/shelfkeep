@@ -43,7 +43,9 @@ def _authors_from_data(payload: dict[str, Any]) -> str | None:
     names = [a.get("name") for a in authors if isinstance(a, dict) and a.get("name")]
     if not names and isinstance(payload.get("author_name"), list):
         names = [str(n) for n in payload["author_name"] if n]
-    return ", ".join(names) if names else None
+    if not names:
+        return None
+    return ", ".join(names)[:500]
 
 
 def _publisher_names(value: Any) -> list[str]:

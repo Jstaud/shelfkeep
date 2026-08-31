@@ -36,6 +36,16 @@ def test_book_from_open_library_payload():
     assert book.source == "openlibrary"
 
 
+def test_authors_are_truncated_to_create_schema_limit():
+    names = [{"name": f"Author {i:03d} " + ("X" * 40)} for i in range(20)]
+    book = book_from_ol_data({"title": "Anthology", "authors": names})
+    assert book.authors is not None
+    assert len(book.authors) <= 500
+    from app.schemas import BookCreate
+
+    BookCreate(title="Anthology", authors=book.authors)
+
+
 def test_publisher_list_is_joined():
     book = book_from_ol_data(
         {

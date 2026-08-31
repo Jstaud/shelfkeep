@@ -50,9 +50,18 @@ def test_workspace_js_ignores_superseded_lookups():
 def test_workspace_js_resets_book_form_after_success():
     script = Path("app/static/js/app.js").read_text(encoding="utf-8")
     after_create = script.split("state.books.unshift(book);")[1].split("} catch")[0]
+    assert "lookupGeneration += 1" in after_create
+    assert after_create.index("lookupGeneration += 1") < after_create.index("resetBookForm()")
     assert "resetBookForm()" in after_create
     assert "renderLookup([])" in after_create
     assert after_create.index("resetBookForm()") < after_create.index('closeSheet("add-book")')
+
+
+def test_workspace_js_removes_empty_room_placeholder_on_first_room():
+    script = Path("app/static/js/app.js").read_text(encoding="utf-8")
+    after_room = script.split("state.rooms.push(room);")[1].split("} catch")[0]
+    assert '$(".nav-empty")?.remove()' in after_room
+    assert after_room.index('$(".nav-empty")?.remove()') < after_room.index('$(".nav-add")?.before(nav)')
 
 
 def test_workspace_js_resets_item_form_after_success():

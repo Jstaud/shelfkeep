@@ -569,6 +569,7 @@ $("#manual-book")?.addEventListener("submit", async (event) => {
       body: JSON.stringify(payload),
     });
     state.books.unshift(book);
+    lookupGeneration += 1;
     resetBookForm();
     renderLookup([]);
     const lookupQ = $("#lookup-q");
@@ -606,6 +607,7 @@ $("#room-form")?.addEventListener("submit", async (event) => {
       click.preventDefault();
       selectRoom(room.id, true);
     });
+    $(".nav-empty")?.remove();
     $(".nav-add")?.before(nav);
     closeSheet("add-room");
     selectRoom(room.id, true);
