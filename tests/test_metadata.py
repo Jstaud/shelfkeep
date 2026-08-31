@@ -1,4 +1,8 @@
-from app.metadata import book_from_ol_data, looks_like_isbn, normalize_isbn
+import asyncio
+import json
+from unittest.mock import AsyncMock
+
+from app.metadata import book_from_ol_data, lookup_isbn, looks_like_isbn, normalize_isbn, search_title
 
 
 def test_normalize_isbn_strips_hyphens():
@@ -30,3 +34,28 @@ def test_book_from_open_library_payload():
     assert book.isbn == "9780547928227"
     assert book.cover_url.endswith("1-L.jpg")
     assert book.source == "openlibrary"
+
+
+def test_publisher_list_is_joined():
+    book = book_from_ol_data(
+        {
+            "title": "Collected Essays",
+            "publisher": ["Harper", "Collins"],
+        }
+    )
+    assert book.publisher == "Harper, Collins"
+    assert "[" not in book.publisher
+
+
+def test_malformed_lookup_json_is_failure_not_error():
+    class BrokenResponse:
+        status_code = 200
+
+        def json(self):
+            raise json.JSONDecodeError("Expecting value", "", 0)
+
+    client = AsyncMock()
+    client.get = AsyncMock(return_value=BrokenResponse())
+
+    assert asyncio.run(lookup_isbn("9780547928227", client=client)) is None
+    assert asyncio.run(search_title("The Hobbit", client=client)) == []

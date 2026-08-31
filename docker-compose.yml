@@ -29,7 +29,9 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-shelfkeep}
       SHELFKEEP_USERNAME: ${SHELFKEEP_USERNAME:-admin}
       SHELFKEEP_PASSWORD: ${SHELFKEEP_PASSWORD:-changeme}
-      SESSION_SECRET: ${SESSION_SECRET:-replace-with-a-long-random-string}
+      # No publicly known default. Empty / placeholder values make the app
+      # generate and persist a unique key under /data.
+      SESSION_SECRET: ${SESSION_SECRET:-}
       DATA_DIR: /data
     volumes:
       - uploads:/data

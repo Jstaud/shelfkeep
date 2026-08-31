@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import json
 import re
 from typing import Any
 
 import httpx
+from pydantic import ValidationError
 
 from app.schemas import BookLookup
 
@@ -44,15 +46,32 @@ def _authors_from_data(payload: dict[str, Any]) -> str | None:
     return ", ".join(names) if names else None
 
 
+def _publisher_names(value: Any) -> list[str]:
+    if not value:
+        return []
+    if isinstance(value, str):
+        stripped = value.strip()
+        return [stripped] if stripped else []
+    if isinstance(value, dict):
+        name = value.get("name")
+        return [str(name)] if name else []
+    if isinstance(value, list):
+        names: list[str] = []
+        for item in value:
+            names.extend(_publisher_names(item))
+        return names
+    text = str(value).strip()
+    return [text] if text else []
+
+
 def _publishers_from_data(payload: dict[str, Any]) -> str | None:
-    pubs = payload.get("publishers") or []
-    if pubs and isinstance(pubs[0], dict):
-        names = [p.get("name") for p in pubs if p.get("name")]
-        return ", ".join(names) if names else None
-    if pubs and isinstance(pubs[0], str):
-        return ", ".join(str(p) for p in pubs)
-    name = payload.get("publisher")
-    return str(name) if name else None
+    names = _publisher_names(payload.get("publishers")) or _publisher_names(
+        payload.get("publisher")
+    )
+    if not names:
+        return None
+    joined = ", ".join(names)
+    return joined[:300]
 
 
 def _cover_from_data(payload: dict[str, Any], isbn: str | None) -> str | None:
@@ -116,6 +135,23 @@ def book_from_ol_data(payload: dict[str, Any], isbn: str | None = None) -> BookL
     )
 
 
+def _json_object(response: httpx.Response) -> dict[str, Any] | None:
+    try:
+        data = response.json()
+    except (json.JSONDecodeError, ValueError):
+        return None
+    return data if isinstance(data, dict) else None
+
+
+def _safe_book(payload: Any, isbn: str | None = None) -> BookLookup | None:
+    if not isinstance(payload, dict):
+        return None
+    try:
+        return book_from_ol_data(payload, isbn)
+    except (TypeError, ValueError, AttributeError, KeyError, ValidationError):
+        return None
+
+
 async def lookup_isbn(isbn: str, client: httpx.AsyncClient | None = None) -> BookLookup | None:
     isbn = normalize_isbn(isbn)
     if not looks_like_isbn(isbn):
@@ -133,20 +169,23 @@ async def lookup_isbn(isbn: str, client: httpx.AsyncClient | None = None) -> Boo
             params={"bibkeys": f"ISBN:{isbn}", "format": "json", "jscmd": "data"},
         )
         if response.status_code == 200:
-            data = response.json()
-            payload = data.get(f"ISBN:{isbn}")
-            if payload:
-                return book_from_ol_data(payload, isbn)
+            data = _json_object(response)
+            payload = data.get(f"ISBN:{isbn}") if data else None
+            book = _safe_book(payload, isbn)
+            if book:
+                return book
 
         # Fallback: edition JSON by ISBN (also a documented Open Library route).
         response = await client.get(ISBN_URL.format(isbn=isbn))
         if response.status_code == 200:
-            payload = response.json()
-            if payload.get("title"):
+            payload = _json_object(response)
+            if payload and payload.get("title"):
                 cover_ids = payload.get("covers") or []
                 if cover_ids and not payload.get("cover"):
                     payload["cover"] = {"large": COVER_ID.format(cover_id=cover_ids[0])}
-                return book_from_ol_data(payload, isbn)
+                book = _safe_book(payload, isbn)
+                if book:
+                    return book
     except httpx.HTTPError:
         return None
     finally:
@@ -173,11 +212,14 @@ async def search_title(query: str, client: httpx.AsyncClient | None = None) -> l
         )
         if response.status_code != 200:
             return []
-        docs = response.json().get("docs") or []
+        body = _json_object(response)
+        if not body:
+            return []
+        docs = body.get("docs") or []
         results: list[BookLookup] = []
         for doc in docs:
-            book = book_from_ol_data(doc)
-            if book.title:
+            book = _safe_book(doc)
+            if book and book.title:
                 results.append(book)
         return results
     except httpx.HTTPError:

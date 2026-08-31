@@ -36,7 +36,7 @@ You need Docker and Docker Compose.
 
 ```bash
 cp .env.example .env
-# Edit .env: set SHELFKEEP_PASSWORD and SESSION_SECRET
+# Edit .env: set SHELFKEEP_PASSWORD. Leave SESSION_SECRET blank to generate one.
 docker compose up --build
 ```
 
@@ -76,13 +76,13 @@ pytest -q
 | --- | --- |
 | `SHELFKEEP_USERNAME` | Local login name (default `admin`) |
 | `SHELFKEEP_PASSWORD` | Local login password (change this) |
-| `SESSION_SECRET` | Cookie signing key (change this) |
+| `SESSION_SECRET` | Cookie signing key. If unset or a documented placeholder, a unique key is generated and persisted under `DATA_DIR` |
 | `DATABASE_URL` | SQLAlchemy URL for non-Docker runs. Compose does not set this; the app builds an encoded URL from `POSTGRES_HOST` + `POSTGRES_*` |
 | `POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_DB` | Compose Postgres credentials (URL-encoded by the app) |
 | `DATA_DIR` | Where uploads are stored (Compose: `/data`) |
 | `SESSION_HTTPS_ONLY` | Set `true` if you terminate TLS in front of the app |
 
-The process logs a warning if the default password or session secret is still in use.
+The process logs a warning if the default login password is still in use. A missing or placeholder `SESSION_SECRET` is never used to sign cookies.
 
 ## Stack
 

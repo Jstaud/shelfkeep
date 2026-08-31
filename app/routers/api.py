@@ -158,24 +158,32 @@ async def create_item(
     room = db.get(Room, room_id)
     if not room:
         raise HTTPException(status_code=404, detail="Room not found")
-    if not name.strip():
-        raise HTTPException(status_code=400, detail="Name is required")
 
+    item_name = _limited(name, field="Name", max_length=300, required=True)
+    item_brand = _limited(brand, field="Brand", max_length=200)
+    item_model = _limited(model, field="Model", max_length=200)
+    item_serial = _limited(serial_number, field="Serial number", max_length=200)
     parsed_date = _parse_date(purchase_date)
     parsed_value = _parse_money(replacement_value)
+
     photo_path = None
     receipt_path = None
-    if photo and photo.filename:
-        photo_path = await save_upload(photo, "photos")
-    if receipt and receipt.filename:
-        receipt_path = await save_upload(receipt, "receipts", receipt=True)
+    try:
+        if photo and photo.filename:
+            photo_path = await save_upload(photo, "photos")
+        if receipt and receipt.filename:
+            receipt_path = await save_upload(receipt, "receipts", receipt=True)
+    except HTTPException:
+        delete_stored_file(photo_path)
+        delete_stored_file(receipt_path)
+        raise
 
     item = HouseholdItem(
         room_id=room.id,
-        name=name.strip(),
-        brand=_blank(brand),
-        model=_blank(model),
-        serial_number=_blank(serial_number),
+        name=item_name,
+        brand=item_brand,
+        model=item_model,
+        serial_number=item_serial,
         purchase_date=parsed_date,
         replacement_value=parsed_value,
         photo_path=photo_path,
@@ -220,6 +228,30 @@ def _blank(value: str | None) -> str | None:
         return None
     stripped = value.strip()
     return stripped or None
+
+
+def _limited(
+    value: str | None,
+    *,
+    field: str,
+    max_length: int,
+    required: bool = False,
+) -> str | None:
+    if value is None:
+        if required:
+            raise HTTPException(status_code=400, detail=f"{field} is required")
+        return None
+    stripped = value.strip()
+    if required and not stripped:
+        raise HTTPException(status_code=400, detail=f"{field} is required")
+    if not stripped:
+        return None
+    if len(stripped) > max_length:
+        raise HTTPException(
+            status_code=400,
+            detail=f"{field} must be at most {max_length} characters",
+        )
+    return stripped
 
 
 def _parse_date(value: str | None) -> date | None:

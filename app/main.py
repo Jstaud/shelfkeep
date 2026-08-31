@@ -36,8 +36,8 @@ async def lifespan(_: FastAPI):
     _seed_library()
     if settings.using_default_secrets:
         log.warning(
-            "Default login or session secret is in use. "
-            "Set SHELFKEEP_PASSWORD and SESSION_SECRET before exposing this instance."
+            "Default login password is in use. "
+            "Set SHELFKEEP_PASSWORD before exposing this instance."
         )
     yield
 
@@ -80,7 +80,7 @@ app = FastAPI(
 app.add_middleware(AuthGateMiddleware)
 app.add_middleware(
     SessionMiddleware,
-    secret_key=settings.session_secret,
+    secret_key=settings.resolved_session_secret,
     session_cookie="shelfkeep_session",
     same_site="lax",
     https_only=settings.session_https_only,

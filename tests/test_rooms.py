@@ -51,6 +51,25 @@ def test_room_and_item_with_photo_serial_and_value(auth_client):
     assert media.headers["content-type"].startswith("image/")
 
 
+def test_invalid_receipt_does_not_leave_orphan_photo(auth_client):
+    room = auth_client.post("/api/rooms", json={"name": "Pantry"})
+    room_id = room.json()["id"]
+    photos_dir = settings.uploads_dir / "photos"
+    photos_dir.mkdir(parents=True, exist_ok=True)
+    before = {path.name for path in photos_dir.glob("*")}
+    response = auth_client.post(
+        "/api/items",
+        data={"room_id": str(room_id), "name": "Toaster"},
+        files={
+            "photo": ("toaster.png", _png_bytes(), "image/png"),
+            "receipt": ("receipt.png", b"not-a-real-image", "image/png"),
+        },
+    )
+    assert response.status_code == 400
+    after = {path.name for path in photos_dir.glob("*")}
+    assert after == before
+
+
 def test_delete_item_removes_photo_from_volume(auth_client):
     room = auth_client.post("/api/rooms", json={"name": "Garage"})
     room_id = room.json()["id"]
