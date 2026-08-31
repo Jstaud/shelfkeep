@@ -19,8 +19,14 @@ services:
     ports:
       - "8080:8080"
     environment:
-      # Built from POSTGRES_* so a host DATABASE_URL (e.g. local SQLite) cannot leak in.
-      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-shelfkeep}:${POSTGRES_PASSWORD:-shelfkeep}@db:5432/${POSTGRES_DB:-shelfkeep}
+      # Pass components, not a raw URL, so reserved characters in generated
+      # passwords are encoded before SQLAlchemy parses them. Also avoids a
+      # host DATABASE_URL (e.g. local SQLite) leaking into the container.
+      POSTGRES_HOST: db
+      POSTGRES_PORT: "5432"
+      POSTGRES_USER: ${POSTGRES_USER:-shelfkeep}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-shelfkeep}
+      POSTGRES_DB: ${POSTGRES_DB:-shelfkeep}
       SHELFKEEP_USERNAME: ${SHELFKEEP_USERNAME:-admin}
       SHELFKEEP_PASSWORD: ${SHELFKEEP_PASSWORD:-changeme}
       SESSION_SECRET: ${SESSION_SECRET:-replace-with-a-long-random-string}

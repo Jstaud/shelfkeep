@@ -9,12 +9,12 @@ from app.config import settings
 engine_kwargs: dict = {"pool_pre_ping": True}
 if settings.is_sqlite:
     engine_kwargs["connect_args"] = {"check_same_thread": False}
-    if ":memory:" in settings.database_url:
+    if ":memory:" in settings.resolved_database_url:
         engine_kwargs["poolclass"] = StaticPool
 else:
     engine_kwargs["connect_args"] = {"connect_timeout": 10}
 
-engine = create_engine(settings.database_url, **engine_kwargs)
+engine = create_engine(settings.resolved_database_url, **engine_kwargs)
 
 SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
 

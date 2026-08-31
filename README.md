@@ -77,7 +77,8 @@ pytest -q
 | `SHELFKEEP_USERNAME` | Local login name (default `admin`) |
 | `SHELFKEEP_PASSWORD` | Local login password (change this) |
 | `SESSION_SECRET` | Cookie signing key (change this) |
-| `DATABASE_URL` | SQLAlchemy URL for non-Docker runs. Compose builds this from `POSTGRES_*` so a leftover local SQLite URL cannot leak into the container |
+| `DATABASE_URL` | SQLAlchemy URL for non-Docker runs. Compose does not set this; the app builds an encoded URL from `POSTGRES_HOST` + `POSTGRES_*` |
+| `POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_DB` | Compose Postgres credentials (URL-encoded by the app) |
 | `DATA_DIR` | Where uploads are stored (Compose: `/data`) |
 | `SESSION_HTTPS_ONLY` | Set `true` if you terminate TLS in front of the app |
 

@@ -1,6 +1,8 @@
 from unittest.mock import AsyncMock, patch
 
+from app.config import settings
 from app.schemas import BookLookup
+from app.uploads import save_bytes
 
 
 def test_manual_book_lands_on_shelf(auth_client):
@@ -46,3 +48,27 @@ def test_isbn_lookup_uses_open_library_and_falls_back(auth_client):
     )
     assert created.status_code == 201
     assert created.json()["title"] == "Unknown Field Guide"
+
+
+def test_delete_book_removes_cached_cover(auth_client):
+    relative = save_bytes(b"x" * 1200, "covers", ".jpg")
+    stored = settings.uploads_dir / relative
+
+    async def fake_cache(_url: str) -> str:
+        return relative
+
+    with patch("app.routers.api._cache_cover", new=fake_cache):
+        created = auth_client.post(
+            "/api/books",
+            json={
+                "title": "Covered Atlas",
+                "cover_url": "https://covers.openlibrary.org/b/isbn/9780000000000-L.jpg",
+            },
+        )
+    assert created.status_code == 201
+    cover_src = created.json()["cover_src"]
+    assert stored.is_file()
+    assert auth_client.get(cover_src).status_code == 200
+    assert auth_client.delete(f"/api/books/{created.json()['id']}").status_code == 204
+    assert auth_client.get(cover_src).status_code == 404
+    assert not stored.exists()

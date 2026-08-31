@@ -13,7 +13,7 @@ from app.models import Book, Collection, HouseholdItem, Room
 from app.routers.pages import default_collection
 from app.schemas import BookCreate, BookOut, ItemOut, RoomCreate, RoomOut
 from app.serializers import book_out, item_out, room_out
-from app.uploads import save_bytes, save_upload
+from app.uploads import delete_stored_file, save_bytes, save_upload
 
 router = APIRouter(prefix="/api")
 
@@ -64,7 +64,7 @@ async def create_book(payload: BookCreate, db: Session = Depends(get_db)):
 
     book = Book(
         collection_id=collection.id,
-        title=payload.title.strip(),
+        title=payload.title,
         subtitle=payload.subtitle,
         authors=payload.authors,
         isbn=isbn,
@@ -96,8 +96,10 @@ def delete_book(book_id: int, db: Session = Depends(get_db)):
     book = db.get(Book, book_id)
     if not book:
         raise HTTPException(status_code=404, detail="Book not found")
+    cover_path = book.cover_path
     db.delete(book)
     db.commit()
+    delete_stored_file(cover_path)
     return None
 
 
@@ -111,7 +113,7 @@ def list_rooms(db: Session = Depends(get_db)):
 
 @router.post("/rooms", response_model=RoomOut, status_code=201)
 def create_room(payload: RoomCreate, db: Session = Depends(get_db)):
-    room = Room(name=payload.name.strip(), description=payload.description)
+    room = Room(name=payload.name, description=payload.description)
     db.add(room)
     db.commit()
     db.refresh(room)
@@ -128,11 +130,14 @@ def get_room(room_id: int, db: Session = Depends(get_db)):
 
 @router.delete("/rooms/{room_id}", status_code=204)
 def delete_room(room_id: int, db: Session = Depends(get_db)):
-    room = db.get(Room, room_id)
+    room = db.scalar(select(Room).options(selectinload(Room.items)).where(Room.id == room_id))
     if not room:
         raise HTTPException(status_code=404, detail="Room not found")
+    paths = [item.photo_path for item in room.items] + [item.receipt_path for item in room.items]
     db.delete(room)
     db.commit()
+    for path in paths:
+        delete_stored_file(path)
     return None
 
 
@@ -201,8 +206,12 @@ def delete_item(item_id: int, db: Session = Depends(get_db)):
     item = db.get(HouseholdItem, item_id)
     if not item:
         raise HTTPException(status_code=404, detail="Item not found")
+    photo_path = item.photo_path
+    receipt_path = item.receipt_path
     db.delete(item)
     db.commit()
+    delete_stored_file(photo_path)
+    delete_stored_file(receipt_path)
     return None
 
 
@@ -229,9 +238,14 @@ def _parse_money(value: str | None) -> Decimal | None:
         amount = Decimal(str(value).replace(",", "").replace("$", "").strip())
     except InvalidOperation as exc:
         raise HTTPException(status_code=400, detail="Replacement value must be a number") from exc
+    if not amount.is_finite():
+        raise HTTPException(status_code=400, detail="Replacement value must be a number")
     if amount < 0:
         raise HTTPException(status_code=400, detail="Replacement value cannot be negative")
-    return amount.quantize(Decimal("0.01"))
+    try:
+        return amount.quantize(Decimal("0.01"))
+    except InvalidOperation as exc:
+        raise HTTPException(status_code=400, detail="Replacement value must be a number") from exc
 
 
 async def _cache_cover(url: str) -> str | None:

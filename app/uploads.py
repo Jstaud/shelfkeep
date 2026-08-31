@@ -67,6 +67,17 @@ async def save_upload(file: UploadFile, folder: str, *, receipt: bool = False) -
     return relative
 
 
+def delete_stored_file(relative: str | None) -> None:
+    if not relative:
+        return
+    try:
+        path = safe_join(relative)
+    except HTTPException:
+        return
+    if path.is_file():
+        path.unlink()
+
+
 def save_bytes(data: bytes, folder: str, suffix: str = ".jpg") -> str:
     name = f"{uuid.uuid4().hex}{suffix}"
     relative = f"{folder}/{name}"

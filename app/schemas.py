@@ -1,7 +1,14 @@
 from datetime import date, datetime
 from decimal import Decimal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
+
+
+def _required_text(value: str) -> str:
+    stripped = value.strip()
+    if not stripped:
+        raise ValueError("This field cannot be blank")
+    return stripped
 
 
 class BookLookup(BaseModel):
@@ -21,6 +28,11 @@ class BookLookup(BaseModel):
 class BookCreate(BaseModel):
     title: str = Field(min_length=1, max_length=500)
     subtitle: str | None = Field(default=None, max_length=500)
+
+    @field_validator("title")
+    @classmethod
+    def title_not_blank(cls, value: str) -> str:
+        return _required_text(value)
     authors: str | None = Field(default=None, max_length=500)
     isbn: str | None = Field(default=None, max_length=32)
     publisher: str | None = Field(default=None, max_length=300)
@@ -56,6 +68,11 @@ class BookOut(BaseModel):
 class RoomCreate(BaseModel):
     name: str = Field(min_length=1, max_length=200)
     description: str | None = Field(default=None, max_length=500)
+
+    @field_validator("name")
+    @classmethod
+    def name_not_blank(cls, value: str) -> str:
+        return _required_text(value)
 
 
 class RoomOut(BaseModel):
