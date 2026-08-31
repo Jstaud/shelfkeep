@@ -1,0 +1,45 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-shelfkeep}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-shelfkeep}
+      POSTGRES_DB: ${POSTGRES_DB:-shelfkeep}
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-shelfkeep} -d ${POSTGRES_DB:-shelfkeep}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  app:
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      # Pass components, not a raw URL, so reserved characters in generated
+      # passwords are encoded before SQLAlchemy parses them. Also avoids a
+      # host DATABASE_URL (e.g. local SQLite) leaking into the container.
+      POSTGRES_HOST: db
+      POSTGRES_PORT: "5432"
+      POSTGRES_USER: ${POSTGRES_USER:-shelfkeep}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-shelfkeep}
+      POSTGRES_DB: ${POSTGRES_DB:-shelfkeep}
+      SHELFKEEP_USERNAME: ${SHELFKEEP_USERNAME:-admin}
+      SHELFKEEP_PASSWORD: ${SHELFKEEP_PASSWORD:-changeme}
+      # No publicly known default. Empty / placeholder values make the app
+      # generate and persist a unique key under /data.
+      SESSION_SECRET: ${SESSION_SECRET:-}
+      DATA_DIR: /data
+    volumes:
+      - uploads:/data
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  db_data:
+  uploads:

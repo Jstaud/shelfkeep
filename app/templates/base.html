@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#16110c">
+  <meta name="description" content="Shelfkeep — a self-hosted library and home inventory.">
+  <title>{% block title %}Shelfkeep{% endblock %}</title>
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="icon" href="/static/icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="/static/icons/icon-192.png">
+  <link rel="stylesheet" href="/static/css/app.css">
+  {% block head %}{% endblock %}
+</head>
+<body class="{% block body_class %}{% endblock %}">
+  <div class="lamp" aria-hidden="true"></div>
+  <header class="topbar">
+    <a class="brand" href="/">
+      <span class="brand-mark" aria-hidden="true"></span>
+      <span class="brand-name">Shelfkeep</span>
+    </a>
+    <p class="topbar-tag">Your shelves. Your rooms. On your machine.</p>
+    <form method="post" action="/logout" class="logout-form">
+      <button type="submit" class="text-btn">Sign out</button>
+    </form>
+  </header>
+  {% block content %}{% endblock %}
+  <script src="/static/js/app.js" defer></script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>
