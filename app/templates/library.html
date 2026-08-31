@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block title %}Library · Shelfkeep{% endblock %}
+{% block nav_library %}is-active{% endblock %}
+{% block body_class %}library-page{% endblock %}
+{% block content %}
+  <section class="page-intro">
+    <div>
+      <p class="eyebrow">The stacks</p>
+      <h1>Library</h1>
+      <p class="lede">Browse your collection the way you would a room — covers out, wood underfoot, details when you want them.</p>
+    </div>
+    <div class="intro-actions">
+      <p class="count">{{ book_count }} {% if book_count == 1 %}volume{% else %}volumes{% endif %}</p>
+      <button type="button" class="primary-btn" data-open="add-book">Add a book</button>
+    </div>
+  </section>
+
+  <section class="shelf-hall" id="shelf-hall" data-books='{{ books | tojson }}'>
+    {% if not books %}
+      <div class="empty-shelf">
+        <div class="empty-plank"></div>
+        <p>The first shelf is empty. Add a book by ISBN, title, or by hand.</p>
+      </div>
+    {% endif %}
+  </section>
+
+  <dialog class="sheet" id="add-book">
+    <form method="dialog" class="sheet-head">
+      <h2>Add a book</h2>
+      <button type="submit" class="icon-btn" aria-label="Close">×</button>
+    </form>
+    <div class="sheet-body">
+      <p class="hint">Look up a title or ISBN (Open Library). If nothing matches, keep the details and add it manually.</p>
+      <div class="lookup-row">
+        <label class="grow">
+          Title or ISBN
+          <input type="text" id="lookup-q" placeholder="9780547928227 or The Hobbit" autocomplete="off">
+        </label>
+        <button type="button" class="primary-btn" id="lookup-btn">Look up</button>
+        <button type="button" class="ghost-btn" id="scan-btn" hidden>Scan</button>
+      </div>
+      <p class="status" id="lookup-status" hidden></p>
+      <div id="lookup-results" class="lookup-results"></div>
+      <form id="manual-book" class="stack compact">
+        <h3>Details</h3>
+        <label>Title <input name="title" required></label>
+        <label>Authors <input name="authors"></label>
+        <label>ISBN <input name="isbn"></label>
+        <div class="split">
+          <label>Publisher <input name="publisher"></label>
+          <label>Year <input name="published_year"></label>
+        </div>
+        <label>Notes <textarea name="notes" rows="2"></textarea></label>
+        <input type="hidden" name="subtitle">
+        <input type="hidden" name="cover_url">
+        <input type="hidden" name="openlibrary_url">
+        <input type="hidden" name="description">
+        <input type="hidden" name="page_count">
+        <button type="submit" class="primary-btn">Place on the shelf</button>
+      </form>
+    </div>
+  </dialog>
+
+  <dialog class="sheet scanner-sheet" id="scanner">
+    <form method="dialog" class="sheet-head">
+      <h2>Scan a barcode</h2>
+      <button type="submit" class="icon-btn" aria-label="Close">×</button>
+    </form>
+    <div class="sheet-body">
+      <video id="scan-video" playsinline muted></video>
+      <p class="hint">Point the camera at an ISBN / EAN barcode. Chromium browsers can detect it locally.</p>
+    </div>
+  </dialog>
+{% endblock %}

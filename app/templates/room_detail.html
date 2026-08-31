@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block title %}{{ room.name }} · Shelfkeep{% endblock %}
+{% block nav_home %}is-active{% endblock %}
+{% block content %}
+  <section class="page-intro">
+    <div>
+      <a class="back" href="/rooms">← All rooms</a>
+      <p class="eyebrow">Room</p>
+      <h1>{{ room.name }}</h1>
+      {% if room.description %}<p class="lede">{{ room.description }}</p>{% endif %}
+    </div>
+    <div class="intro-actions">
+      <p class="count">{{ room.item_count }} items · ${{ '%.2f' | format(room.replacement_total | float) }}</p>
+      <button type="button" class="primary-btn" data-open="add-item">Add an item</button>
+    </div>
+  </section>
+
+  <section class="item-surface">
+    {% if items %}
+      <ul class="item-grid">
+        {% for item in items %}
+          <li>
+            <a class="item-card" href="/items/{{ item.id }}">
+              {% if item.photo_src %}
+                <img src="{{ item.photo_src }}" alt="">
+              {% else %}
+                <div class="photo-placeholder" aria-hidden="true"></div>
+              {% endif %}
+              <strong>{{ item.name }}</strong>
+              {% if item.serial_number %}<span>S/N {{ item.serial_number }}</span>{% endif %}
+              {% if item.replacement_value %}<span>${{ item.replacement_value }}</span>{% endif %}
+            </a>
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <div class="empty-shelf">
+        <p>This room is still settling in. Add a lamp, a bicycle, a kettle — whatever you would want on an insurance list.</p>
+      </div>
+    {% endif %}
+  </section>
+
+  <dialog class="sheet" id="add-item">
+    <form method="dialog" class="sheet-head">
+      <h2>Add an item</h2>
+      <button type="submit" class="icon-btn" aria-label="Close">×</button>
+    </form>
+    <form id="item-form" class="sheet-body stack" data-room-id="{{ room.id }}" enctype="multipart/form-data">
+      <label>Name <input name="name" required placeholder="Stand mixer"></label>
+      <div class="split">
+        <label>Brand <input name="brand"></label>
+        <label>Model <input name="model"></label>
+      </div>
+      <label>Serial number <input name="serial_number"></label>
+      <div class="split">
+        <label>Purchase date <input type="date" name="purchase_date"></label>
+        <label>Replacement value <input name="replacement_value" inputmode="decimal" placeholder="249.00"></label>
+      </div>
+      <label>Photo <input type="file" name="photo" accept="image/jpeg,image/png,image/webp"></label>
+      <label>Receipt <input type="file" name="receipt" accept="image/jpeg,image/png,image/webp,application/pdf"></label>
+      <label>Notes <textarea name="notes" rows="2"></textarea></label>
+      <button type="submit" class="primary-btn">Keep this item</button>
+    </form>
+  </dialog>
+{% endblock %}

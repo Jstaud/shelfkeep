@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}{{ item.name }} · Shelfkeep{% endblock %}
+{% block nav_home %}is-active{% endblock %}
+{% block content %}
+  <article class="detail item-detail">
+    <a class="back" href="/rooms/{{ item.room_id }}">← {{ item.room_name or "Room" }}</a>
+    <div class="detail-grid">
+      <div class="cover-stage item-stage">
+        {% if item.photo_src %}
+          <img class="hero-photo" src="{{ item.photo_src }}" alt="{{ item.name }}">
+        {% else %}
+          <div class="photo-placeholder large" aria-hidden="true"></div>
+        {% endif %}
+      </div>
+      <div class="detail-copy">
+        <p class="eyebrow">Household item</p>
+        <h1>{{ item.name }}</h1>
+        {% if item.brand or item.model %}
+          <p class="byline">{{ item.brand or "" }} {{ item.model or "" }}</p>
+        {% endif %}
+        <dl class="facts">
+          {% if item.serial_number %}<div><dt>Serial</dt><dd>{{ item.serial_number }}</dd></div>{% endif %}
+          {% if item.purchase_date %}<div><dt>Purchased</dt><dd>{{ item.purchase_date }}</dd></div>{% endif %}
+          {% if item.replacement_value %}<div><dt>Replacement</dt><dd>${{ item.replacement_value }}</dd></div>{% endif %}
+          <div><dt>Room</dt><dd>{{ item.room_name }}</dd></div>
+        </dl>
+        {% if item.notes %}<p class="notes">{{ item.notes }}</p>{% endif %}
+        {% if item.receipt_src %}
+          <p><a class="text-link" href="{{ item.receipt_src }}">View receipt</a></p>
+        {% endif %}
+        <button type="button" class="danger-btn" data-delete-item="{{ item.id }}" data-room="{{ item.room_id }}">Remove item</button>
+      </div>
+    </div>
+  </article>
+{% endblock %}

@@ -1,0 +1,36 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-shelfkeep}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-shelfkeep}
+      POSTGRES_DB: ${POSTGRES_DB:-shelfkeep}
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-shelfkeep} -d ${POSTGRES_DB:-shelfkeep}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  app:
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg://shelfkeep:shelfkeep@db:5432/shelfkeep}
+      SHELFKEEP_USERNAME: ${SHELFKEEP_USERNAME:-admin}
+      SHELFKEEP_PASSWORD: ${SHELFKEEP_PASSWORD:-changeme}
+      SESSION_SECRET: ${SESSION_SECRET:-replace-with-a-long-random-string}
+      DATA_DIR: /data
+    volumes:
+      - uploads:/data
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  db_data:
+  uploads:

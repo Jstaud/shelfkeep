@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#1a1008">
+  <meta name="description" content="Shelfkeep — a self-hosted library and home inventory.">
+  <title>{% block title %}Shelfkeep{% endblock %}</title>
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="icon" href="/static/icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="/static/icons/icon-192.png">
+  <link rel="stylesheet" href="/static/css/app.css">
+  {% block head %}{% endblock %}
+</head>
+<body class="{% block body_class %}{% endblock %}">
+  <div class="lamp"></div>
+  <header class="topbar">
+    <a class="brand" href="/">
+      <span class="brand-mark" aria-hidden="true"></span>
+      <span class="brand-name">Shelfkeep</span>
+    </a>
+    <nav class="nav">
+      <a href="/" class="{% block nav_library %}{% endblock %}">Library</a>
+      <a href="/rooms" class="{% block nav_home %}{% endblock %}">Home</a>
+    </nav>
+    <form method="post" action="/logout" class="logout-form">
+      <button type="submit" class="text-btn">Sign out</button>
+    </form>
+  </header>
+  <main>
+    {% block content %}{% endblock %}
+  </main>
+  <footer class="colophon">
+    <p>Shelfkeep is original open-source software. Not affiliated with Delicious Monster, Delicious Library, or Under My Roof.</p>
+    <p>Book metadata and covers courtesy of <a href="https://openlibrary.org" rel="noreferrer">Open Library</a>.</p>
+  </footer>
+  <script src="/static/js/app.js" defer></script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}Home · Shelfkeep{% endblock %}
+{% block nav_home %}is-active{% endblock %}
+{% block body_class %}rooms-page{% endblock %}
+{% block content %}
+  <section class="page-intro">
+    <div>
+      <p class="eyebrow">Under this roof</p>
+      <h1>Home</h1>
+      <p class="lede">Walk the rooms. Photograph what you own. Keep serials, receipts, and replacement values for a rainy day — not a spreadsheet.</p>
+    </div>
+    <div class="intro-actions">
+      <p class="count">{{ total_items }} items · ${{ total_value }} insured value</p>
+      <button type="button" class="primary-btn" data-open="add-room">Add a room</button>
+    </div>
+  </section>
+
+  <section class="room-hall">
+    {% if rooms %}
+      <ul class="room-grid">
+        {% for room in rooms %}
+          <li>
+            <a class="room-card" href="/rooms/{{ room.id }}">
+              <span class="door" aria-hidden="true"></span>
+              <span class="room-meta">
+                <strong>{{ room.name }}</strong>
+                <em>{{ room.item_count }} {% if room.item_count == 1 %}item{% else %}items{% endif %}</em>
+                {% if room.description %}<span>{{ room.description }}</span>{% endif %}
+              </span>
+            </a>
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <div class="empty-shelf home-empty">
+        <p>No rooms yet. Start with the kitchen, a studio, the garage — wherever things live.</p>
+      </div>
+    {% endif %}
+  </section>
+
+  <dialog class="sheet" id="add-room">
+    <form method="dialog" class="sheet-head">
+      <h2>Add a room</h2>
+      <button type="submit" class="icon-btn" aria-label="Close">×</button>
+    </form>
+    <form id="room-form" class="sheet-body stack">
+      <label>Name <input name="name" required placeholder="Kitchen"></label>
+      <label>Notes <input name="description" placeholder="North side of the house"></label>
+      <button type="submit" class="primary-btn">Create room</button>
+    </form>
+  </dialog>
+{% endblock %}
