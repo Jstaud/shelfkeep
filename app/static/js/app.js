@@ -82,9 +82,10 @@ function renderShelves(books) {
 }
 
 const hall = $("#shelf-hall");
-if (hall) {
+const booksData = $("#books-data");
+if (hall && booksData) {
   try {
-    renderShelves(JSON.parse(hall.dataset.books || "[]"));
+    renderShelves(JSON.parse(booksData.textContent || "[]"));
   } catch {
     renderShelves([]);
   }

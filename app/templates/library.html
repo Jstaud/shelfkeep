@@ -15,7 +15,8 @@
     </div>
   </section>
 
-  <section class="shelf-hall" id="shelf-hall" data-books='{{ books | tojson }}'>
+  <script type="application/json" id="books-data">{{ books | tojson }}</script>
+  <section class="shelf-hall" id="shelf-hall">
     {% if not books %}
       <div class="empty-shelf">
         <div class="empty-plank"></div>
