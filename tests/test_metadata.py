@@ -3,6 +3,7 @@ import json
 from unittest.mock import AsyncMock
 
 from app.metadata import book_from_ol_data, lookup_isbn, looks_like_isbn, normalize_isbn, search_title
+from app.schemas import BookCreate
 
 
 def test_normalize_isbn_strips_hyphens():
@@ -41,8 +42,6 @@ def test_authors_are_truncated_to_create_schema_limit():
     book = book_from_ol_data({"title": "Anthology", "authors": names})
     assert book.authors is not None
     assert len(book.authors) <= 500
-    from app.schemas import BookCreate
-
     BookCreate(title="Anthology", authors=book.authors)
 
 
