@@ -21,6 +21,7 @@ RECEIPT_TYPES = {
 
 MAX_IMAGE_BYTES = 10 * 1024 * 1024
 MAX_RECEIPT_BYTES = 15 * 1024 * 1024
+READ_CHUNK_BYTES = 64 * 1024
 
 
 def ensure_dirs() -> None:
@@ -54,10 +55,8 @@ async def save_upload(file: UploadFile, folder: str, *, receipt: bool = False) -
             + (" or PDF" if receipt else "")
             + ".",
         )
-    data = await file.read()
     limit = MAX_RECEIPT_BYTES if receipt else MAX_IMAGE_BYTES
-    if len(data) > limit:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="File is too large")
+    data = await read_upload_limited(file, limit)
     if suffix != ".pdf":
         _assert_image(data)
     name = f"{uuid.uuid4().hex}{suffix}"
@@ -65,6 +64,22 @@ async def save_upload(file: UploadFile, folder: str, *, receipt: bool = False) -
     dest = safe_join(relative)
     dest.write_bytes(data)
     return relative
+
+
+async def read_upload_limited(file: UploadFile, limit: int) -> bytes:
+    """Read an upload in bounded chunks and abort as soon as it exceeds limit."""
+    chunks: list[bytes] = []
+    total = 0
+    while True:
+        remaining = limit - total
+        chunk = await file.read(READ_CHUNK_BYTES if remaining >= READ_CHUNK_BYTES else remaining + 1)
+        if not chunk:
+            break
+        total += len(chunk)
+        if total > limit:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="File is too large")
+        chunks.append(chunk)
+    return b"".join(chunks)
 
 
 def delete_stored_file(relative: str | None) -> None:

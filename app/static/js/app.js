@@ -452,11 +452,36 @@ window.addEventListener("popstate", () => {
   } else selectLibrary(false);
 });
 
+const BOOK_FORM_KEYS = [
+  "title",
+  "authors",
+  "isbn",
+  "publisher",
+  "published_year",
+  "notes",
+  "subtitle",
+  "cover_url",
+  "openlibrary_url",
+  "description",
+  "page_count",
+];
+
+function resetBookForm() {
+  const form = $("#manual-book");
+  if (!form) return;
+  BOOK_FORM_KEYS.forEach((key) => {
+    if (form.elements[key]) form.elements[key].value = "";
+  });
+}
+
 function fillBookForm(book) {
   const form = $("#manual-book");
   if (!form) return;
-  for (const [key, value] of Object.entries(book)) {
-    if (form.elements[key] != null && value != null) form.elements[key].value = value;
+  resetBookForm();
+  for (const [key, value] of Object.entries(book || {})) {
+    if (form.elements[key] != null && value != null && value !== "") {
+      form.elements[key].value = value;
+    }
   }
 }
 
@@ -498,6 +523,7 @@ if (lookupBtn) {
             ? "No match. A book EAN often starts with 978. You can still type the title and place it by hand."
             : "No match. Keep the title and place it by hand.";
         renderLookup([]);
+        resetBookForm();
         if (data.kind === "isbn") $("#manual-book").elements.isbn.value = q.replace(/[^0-9Xx]/g, "");
         else $("#manual-book").elements.title.value = q;
         return;
@@ -592,6 +618,7 @@ async function stopScan() {
   scanTimer = null;
   scanStream?.getTracks().forEach((t) => t.stop());
   scanStream = null;
+  if (video) video.srcObject = null;
 }
 
 if (scanBtn && "BarcodeDetector" in window) {
@@ -617,6 +644,8 @@ if (scanBtn && "BarcodeDetector" in window) {
         }
       }, 400);
     } catch {
+      await stopScan();
+      closeSheet("scanner");
       alert("Camera is not available. Type the ISBN instead.");
     }
   });

@@ -59,3 +59,16 @@ def test_malformed_lookup_json_is_failure_not_error():
 
     assert asyncio.run(lookup_isbn("9780547928227", client=client)) is None
     assert asyncio.run(search_title("The Hobbit", client=client)) == []
+
+
+def test_malformed_search_docs_is_lookup_miss():
+    class DocsResponse:
+        status_code = 200
+
+        def json(self):
+            return {"docs": 1}
+
+    client = AsyncMock()
+    client.get = AsyncMock(return_value=DocsResponse())
+
+    assert asyncio.run(search_title("The Hobbit", client=client)) == []

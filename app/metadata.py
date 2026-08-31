@@ -215,7 +215,9 @@ async def search_title(query: str, client: httpx.AsyncClient | None = None) -> l
         body = _json_object(response)
         if not body:
             return []
-        docs = body.get("docs") or []
+        docs = body.get("docs")
+        if not isinstance(docs, list):
+            return []
         results: list[BookLookup] = []
         for doc in docs:
             book = _safe_book(doc)
