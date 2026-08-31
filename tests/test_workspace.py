@@ -64,6 +64,21 @@ def test_workspace_js_removes_empty_room_placeholder_on_first_room():
     assert after_room.index('$(".nav-empty")?.remove()') < after_room.index('$(".nav-add")?.before(nav)')
 
 
+def test_workspace_js_replaces_item_url_after_delete():
+    script = Path("app/static/js/app.js").read_text(encoding="utf-8")
+    after_delete = script.split("Remove this household item?")[1].split("actions.append(remove)")[0]
+    assert "history.replaceState" in after_delete
+    assert "`/rooms/${roomId}`" in after_delete or "/rooms/${roomId}" in after_delete
+    assert after_delete.index("renderAll()") < after_delete.index("history.replaceState")
+
+
+def test_workspace_js_resets_room_form_after_success():
+    script = Path("app/static/js/app.js").read_text(encoding="utf-8")
+    after_room = script.split("state.rooms.push(room);")[1].split("} catch")[0]
+    assert "event.target.reset()" in after_room
+    assert after_room.index("event.target.reset()") < after_room.index('closeSheet("add-room")')
+
+
 def test_workspace_js_resets_item_form_after_success():
     script = Path("app/static/js/app.js").read_text(encoding="utf-8")
     item_submit = script.split('$("#item-form")')[1].split("$(\"#room-form\")")[0] if '$("#room-form")' in script.split('$("#item-form")')[1] else script.split('$("#item-form")')[1]

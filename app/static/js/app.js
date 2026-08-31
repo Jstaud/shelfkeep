@@ -346,6 +346,8 @@ function inspectItem(item) {
     if (room) room.items = (room.items || []).filter((i) => i.id !== item.id);
     state.selectedItemId = null;
     renderAll();
+    const roomId = item.room_id || room?.id || state.selectedRoomId;
+    if (roomId) history.replaceState({}, "", `/rooms/${roomId}`);
   });
   actions.append(remove);
   pane.append(art, copy);
@@ -609,6 +611,7 @@ $("#room-form")?.addEventListener("submit", async (event) => {
     });
     $(".nav-empty")?.remove();
     $(".nav-add")?.before(nav);
+    event.target.reset();
     closeSheet("add-room");
     selectRoom(room.id, true);
   } catch (err) {
