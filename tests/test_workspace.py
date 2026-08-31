@@ -47,6 +47,14 @@ def test_workspace_js_ignores_superseded_lookups():
     assert script.count("if (generation !== lookupGeneration) return") >= 2
 
 
+def test_workspace_js_resets_book_form_after_success():
+    script = Path("app/static/js/app.js").read_text(encoding="utf-8")
+    after_create = script.split("state.books.unshift(book);")[1].split("} catch")[0]
+    assert "resetBookForm()" in after_create
+    assert "renderLookup([])" in after_create
+    assert after_create.index("resetBookForm()") < after_create.index('closeSheet("add-book")')
+
+
 def test_workspace_js_resets_item_form_after_success():
     script = Path("app/static/js/app.js").read_text(encoding="utf-8")
     item_submit = script.split('$("#item-form")')[1].split("$(\"#room-form\")")[0] if '$("#room-form")' in script.split('$("#item-form")')[1] else script.split('$("#item-form")')[1]

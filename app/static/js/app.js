@@ -569,6 +569,15 @@ $("#manual-book")?.addEventListener("submit", async (event) => {
       body: JSON.stringify(payload),
     });
     state.books.unshift(book);
+    resetBookForm();
+    renderLookup([]);
+    const lookupQ = $("#lookup-q");
+    if (lookupQ) lookupQ.value = "";
+    const lookupStatus = $("#lookup-status");
+    if (lookupStatus) {
+      lookupStatus.hidden = true;
+      lookupStatus.textContent = "";
+    }
     closeSheet("add-book");
     selectBook(book.id, true);
   } catch (err) {

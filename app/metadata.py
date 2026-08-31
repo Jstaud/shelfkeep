@@ -180,9 +180,13 @@ async def lookup_isbn(isbn: str, client: httpx.AsyncClient | None = None) -> Boo
         if response.status_code == 200:
             payload = _json_object(response)
             if payload and payload.get("title"):
-                cover_ids = payload.get("covers") or []
-                if cover_ids and not payload.get("cover"):
-                    payload["cover"] = {"large": COVER_ID.format(cover_id=cover_ids[0])}
+                covers = payload.get("covers")
+                if (
+                    isinstance(covers, list)
+                    and covers
+                    and not payload.get("cover")
+                ):
+                    payload["cover"] = {"large": COVER_ID.format(cover_id=covers[0])}
                 book = _safe_book(payload, isbn)
                 if book:
                     return book

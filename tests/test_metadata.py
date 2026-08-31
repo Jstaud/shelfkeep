@@ -72,3 +72,24 @@ def test_malformed_search_docs_is_lookup_miss():
     client.get = AsyncMock(return_value=DocsResponse())
 
     assert asyncio.run(search_title("The Hobbit", client=client)) == []
+
+
+def test_malformed_fallback_covers_does_not_raise():
+    class BooksMiss:
+        status_code = 200
+
+        def json(self):
+            return {}
+
+    class BadCovers:
+        status_code = 200
+
+        def json(self):
+            return {"title": "The Hobbit", "covers": 1}
+
+    client = AsyncMock()
+    client.get = AsyncMock(side_effect=[BooksMiss(), BadCovers()])
+
+    result = asyncio.run(lookup_isbn("9780547928227", client=client))
+    assert result is not None
+    assert result.title == "The Hobbit"
