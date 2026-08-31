@@ -1,4 +1,4 @@
-const CACHE = "shelfkeep-shell-v3";
+const CACHE = "shelfkeep-shell-v4";
 const SHELL = [
   "/static/css/app.css",
   "/static/js/app.js",

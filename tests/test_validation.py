@@ -19,6 +19,21 @@ def test_whitespace_only_room_name_is_rejected(auth_client):
     assert response.status_code == 422
 
 
+def test_page_count_rejects_integer_overflow(auth_client):
+    for bad in (2_147_483_648, -1, 10**12):
+        response = auth_client.post(
+            "/api/books",
+            json={"title": "Overlong Folio", "page_count": bad},
+        )
+        assert response.status_code == 400, bad
+        assert "page count" in response.json()["detail"].lower()
+    ok = auth_client.post(
+        "/api/books",
+        json={"title": "Short Folio", "page_count": 2147483647},
+    )
+    assert ok.status_code == 201, ok.text
+
+
 def test_replacement_value_rejects_nan_and_infinity(auth_client):
     room = auth_client.post("/api/rooms", json={"name": "Workshop"})
     room_id = room.json()["id"]

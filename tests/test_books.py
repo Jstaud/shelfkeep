@@ -1,5 +1,7 @@
 from unittest.mock import AsyncMock, patch
 
+from sqlalchemy.orm import Session
+
 from app.config import settings
 from app.schemas import BookLookup
 from app.uploads import save_bytes
@@ -71,4 +73,29 @@ def test_delete_book_removes_cached_cover(auth_client):
     assert auth_client.get(cover_src).status_code == 200
     assert auth_client.delete(f"/api/books/{created.json()['id']}").status_code == 204
     assert auth_client.get(cover_src).status_code == 404
+    assert not stored.exists()
+
+
+def test_failed_book_commit_removes_cached_cover(auth_client, monkeypatch):
+    relative = save_bytes(b"x" * 1200, "covers", ".jpg")
+    stored = settings.uploads_dir / relative
+
+    async def fake_cache(_url: str) -> str:
+        return relative
+
+    def fail_commit(self):
+        raise RuntimeError("commit failed")
+
+    monkeypatch.setattr(Session, "commit", fail_commit)
+    with patch("app.routers.api._cache_cover", new=fake_cache):
+        try:
+            auth_client.post(
+                "/api/books",
+                json={
+                    "title": "Lost Cover",
+                    "cover_url": "https://covers.openlibrary.org/b/isbn/9780000000000-L.jpg",
+                },
+            )
+        except RuntimeError:
+            pass
     assert not stored.exists()

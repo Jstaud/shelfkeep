@@ -57,29 +57,37 @@ async def create_book(payload: BookCreate, db: Session = Depends(get_db)):
         collection = default_collection(db)
 
     isbn = normalize_isbn(payload.isbn) if payload.isbn else None
+    page_count = _bound_page_count(payload.page_count)
     cover_path = None
     cover_url = payload.cover_url
-    if cover_url and cover_url.startswith("https://covers.openlibrary.org/"):
-        cover_path = await _cache_cover(cover_url)
-
-    book = Book(
-        collection_id=collection.id,
-        title=payload.title,
-        subtitle=payload.subtitle,
-        authors=payload.authors,
-        isbn=isbn,
-        publisher=payload.publisher,
-        published_year=payload.published_year,
-        page_count=payload.page_count,
-        description=payload.description,
-        cover_path=cover_path,
-        cover_url=cover_url,
-        openlibrary_url=payload.openlibrary_url,
-        notes=payload.notes,
-    )
-    db.add(book)
-    db.commit()
-    db.refresh(book)
+    persisted = False
+    try:
+        if cover_url and cover_url.startswith("https://covers.openlibrary.org/"):
+            cover_path = await _cache_cover(cover_url)
+        book = Book(
+            collection_id=collection.id,
+            title=payload.title,
+            subtitle=payload.subtitle,
+            authors=payload.authors,
+            isbn=isbn,
+            publisher=payload.publisher,
+            published_year=payload.published_year,
+            page_count=page_count,
+            description=payload.description,
+            cover_path=cover_path,
+            cover_url=cover_url,
+            openlibrary_url=payload.openlibrary_url,
+            notes=payload.notes,
+        )
+        db.add(book)
+        db.commit()
+        persisted = True
+        db.refresh(book)
+    except Exception:
+        if not persisted:
+            db.rollback()
+            delete_stored_file(cover_path)
+        raise
     return book_out(book)
 
 
@@ -255,6 +263,17 @@ def _limited(
             detail=f"{field} must be at most {max_length} characters",
         )
     return stripped
+
+
+PG_INT_MAX = 2147483647
+
+
+def _bound_page_count(value: int | None) -> int | None:
+    if value is None:
+        return None
+    if value < 0 or value > PG_INT_MAX:
+        raise HTTPException(status_code=400, detail="Page count is out of range")
+    return value
 
 
 def _parse_date(value: str | None) -> date | None:

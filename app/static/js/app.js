@@ -509,14 +509,27 @@ function renderLookup(results) {
 }
 
 const lookupBtn = $("#lookup-btn");
+let lookupGeneration = 0;
+
+function applyLookupQuery(q) {
+  const digits = q.replace(/[^0-9Xx]/g, "");
+  if (digits.length === 10 || digits.length === 13) {
+    $("#manual-book").elements.isbn.value = digits;
+  } else if (q) {
+    $("#manual-book").elements.title.value = q;
+  }
+}
+
 if (lookupBtn) {
   lookupBtn.addEventListener("click", async () => {
     const q = $("#lookup-q").value.trim();
     const status = $("#lookup-status");
+    const generation = ++lookupGeneration;
     status.hidden = false;
     status.textContent = "Asking Open Library…";
     try {
       const data = await api(`/api/lookup?q=${encodeURIComponent(q)}`);
+      if (generation !== lookupGeneration) return;
       if (!data.found) {
         status.textContent =
           data.kind === "isbn"
@@ -524,8 +537,7 @@ if (lookupBtn) {
             : "No match. Keep the title and place it by hand.";
         renderLookup([]);
         resetBookForm();
-        if (data.kind === "isbn") $("#manual-book").elements.isbn.value = q.replace(/[^0-9Xx]/g, "");
-        else $("#manual-book").elements.title.value = q;
+        applyLookupQuery(q);
         return;
       }
       status.textContent =
@@ -533,7 +545,11 @@ if (lookupBtn) {
       renderLookup(data.results);
       if (data.results[0]) fillBookForm(data.results[0]);
     } catch (err) {
+      if (generation !== lookupGeneration) return;
       status.textContent = err.message || "Lookup failed. You can still add the book manually.";
+      renderLookup([]);
+      resetBookForm();
+      applyLookupQuery(q);
     }
   });
 }
@@ -600,6 +616,7 @@ $("#item-form")?.addEventListener("submit", async (event) => {
       room.items = room.items || [];
       room.items.push(item);
     }
+    event.target.reset();
     closeSheet("add-item");
     selectItem(item.id, true);
   } catch (err) {
