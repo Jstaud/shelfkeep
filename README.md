@@ -18,7 +18,8 @@ The interface is inspired by the *feeling* of browsing real shelves — not a cl
 
 ## Features (v1)
 
-- Wooden-shelf library with large cover art
+- Three-pane workspace: collections and rooms on the left, a shelf of object-like covers in the center, details on the right
+- Wooden-shelf library with large cover art (sheen, spine, and shadow — original, not a clone)
 - Add books by ISBN, title lookup, or manual entry
 - Public metadata from [Open Library](https://openlibrary.org) (covers and bibliographic data), with a graceful fallback if lookup fails
 - Optional on-device barcode scan in browsers that implement `BarcodeDetector` (Chromium)

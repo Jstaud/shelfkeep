@@ -1,0 +1,151 @@
+{% extends "base.html" %}
+{% block title %}{% if view == 'library' %}Library{% else %}Home{% endif %} · Shelfkeep{% endblock %}
+{% block body_class %}is-workspace{% endblock %}
+{% block content %}
+  <script type="application/json" id="workspace-data">{{ {
+    "view": view,
+    "books": books,
+    "rooms": rooms,
+    "selectedBookId": selected_book_id,
+    "selectedRoomId": selected_room_id,
+    "selectedItemId": selected_item_id
+  } | tojson }}</script>
+
+  <div class="panes" data-view="{{ view }}">
+    <nav class="pane pane-nav" aria-label="Collections and rooms">
+      <section>
+        <h2>Collections</h2>
+        <a class="nav-row {% if view == 'library' %}is-active{% endif %}" href="/" data-open-library>
+          <span class="nav-ico nav-ico-books" aria-hidden="true"></span>
+          <span>Library</span>
+          <em>{{ book_count }}</em>
+        </a>
+      </section>
+      <section>
+        <h2>Rooms</h2>
+        {% for room in rooms %}
+          <a class="nav-row {% if selected_room_id == room.id %}is-active{% endif %}"
+             href="/rooms/{{ room.id }}"
+             data-open-room="{{ room.id }}">
+            <span class="nav-ico nav-ico-room" aria-hidden="true"></span>
+            <span>{{ room.name }}</span>
+            <em>{{ room.item_count }}</em>
+          </a>
+        {% else %}
+          <p class="nav-empty">No rooms yet.</p>
+        {% endfor %}
+        <button type="button" class="ghost-btn nav-add" data-open="add-room">Add a room</button>
+      </section>
+      <p class="nav-value">{{ total_items }} household items · ${{ total_value }}</p>
+      <p class="legal-mini">Original software. Not affiliated with Delicious Monster, Delicious Library, or Under My Roof. Covers courtesy of <a href="https://openlibrary.org" rel="noreferrer">Open Library</a>.</p>
+    </nav>
+
+    <section class="pane pane-stage">
+      <header class="stage-bar">
+        <div>
+          <p class="eyebrow" id="stage-kicker">{% if view == 'library' %}The stacks{% else %}Under this roof{% endif %}</p>
+          <h1 id="stage-title">{% if view == 'library' %}Library{% elif selected_room_id %}{% for room in rooms %}{% if room.id == selected_room_id %}{{ room.name }}{% endif %}{% endfor %}{% else %}Rooms{% endif %}</h1>
+        </div>
+        <div class="stage-tools">
+          <label class="find">
+            <span class="visually-hidden">Find on this shelf</span>
+            <input type="search" id="shelf-filter" placeholder="Find on this shelf" autocomplete="off">
+          </label>
+          <label class="scale">
+            <span class="visually-hidden">Cover size</span>
+            <input type="range" id="cover-scale" min="70" max="140" value="100">
+          </label>
+          <button type="button" class="primary-btn" id="stage-add">Add a book</button>
+        </div>
+      </header>
+      <div class="stage-well" id="stage-well"></div>
+    </section>
+
+    <aside class="pane pane-inspect" id="inspector" aria-live="polite">
+      <p class="inspect-empty">Select a volume or an item. Details stay here — the shelf stays in the middle.</p>
+    </aside>
+  </div>
+
+  <dialog class="sheet" id="add-book">
+    <form method="dialog" class="sheet-head">
+      <h2>Add a book</h2>
+      <button type="submit" class="icon-btn" aria-label="Close">×</button>
+    </form>
+    <div class="sheet-body">
+      <p class="hint">Look up a title or ISBN through Open Library. If nothing comes back, keep the details and place it by hand.</p>
+      <div class="lookup-row">
+        <label class="grow">
+          Title or ISBN
+          <input type="text" id="lookup-q" placeholder="9780547928227 or The Hobbit" autocomplete="off">
+        </label>
+        <button type="button" class="primary-btn" id="lookup-btn">Look up</button>
+        <button type="button" class="ghost-btn" id="scan-btn" hidden>Scan</button>
+      </div>
+      <p class="status" id="lookup-status" hidden></p>
+      <div id="lookup-results" class="lookup-results"></div>
+      <form id="manual-book" class="stack compact">
+        <h3>Card</h3>
+        <label>Title <input name="title" required></label>
+        <label>Authors <input name="authors"></label>
+        <label>ISBN / EAN <input name="isbn"></label>
+        <div class="split">
+          <label>Publisher <input name="publisher"></label>
+          <label>Year <input name="published_year"></label>
+        </div>
+        <label>Notes <textarea name="notes" rows="2"></textarea></label>
+        <input type="hidden" name="subtitle">
+        <input type="hidden" name="cover_url">
+        <input type="hidden" name="openlibrary_url">
+        <input type="hidden" name="description">
+        <input type="hidden" name="page_count">
+        <button type="submit" class="primary-btn">Place on the shelf</button>
+      </form>
+    </div>
+  </dialog>
+
+  <dialog class="sheet" id="add-room">
+    <form method="dialog" class="sheet-head">
+      <h2>Add a room</h2>
+      <button type="submit" class="icon-btn" aria-label="Close">×</button>
+    </form>
+    <form id="room-form" class="sheet-body stack">
+      <label>Name <input name="name" required placeholder="Kitchen"></label>
+      <label>Notes <input name="description" placeholder="North side of the house"></label>
+      <button type="submit" class="primary-btn">Create room</button>
+    </form>
+  </dialog>
+
+  <dialog class="sheet" id="add-item">
+    <form method="dialog" class="sheet-head">
+      <h2>Add an item</h2>
+      <button type="submit" class="icon-btn" aria-label="Close">×</button>
+    </form>
+    <form id="item-form" class="sheet-body stack" enctype="multipart/form-data">
+      <label>Name <input name="name" required placeholder="Stand mixer"></label>
+      <div class="split">
+        <label>Brand <input name="brand"></label>
+        <label>Model <input name="model"></label>
+      </div>
+      <label>Serial number <input name="serial_number"></label>
+      <div class="split">
+        <label>Purchase date <input type="date" name="purchase_date"></label>
+        <label>Replacement value <input name="replacement_value" inputmode="decimal" placeholder="249.00"></label>
+      </div>
+      <label>Photo <input type="file" name="photo" accept="image/jpeg,image/png,image/webp"></label>
+      <label>Receipt <input type="file" name="receipt" accept="image/jpeg,image/png,image/webp,application/pdf"></label>
+      <label>Notes <textarea name="notes" rows="2"></textarea></label>
+      <button type="submit" class="primary-btn">Keep this item</button>
+    </form>
+  </dialog>
+
+  <dialog class="sheet scanner-sheet" id="scanner">
+    <form method="dialog" class="sheet-head">
+      <h2>Scan a barcode</h2>
+      <button type="submit" class="icon-btn" aria-label="Close">×</button>
+    </form>
+    <div class="sheet-body">
+      <video id="scan-video" playsinline muted></video>
+      <p class="hint">Point the camera at an ISBN or EAN. Detection stays on this device when the browser supports it.</p>
+    </div>
+  </dialog>
+{% endblock %}
