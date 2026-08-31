@@ -50,7 +50,26 @@ function currentRoom() {
   return state.rooms.find((room) => room.id === state.selectedRoomId) || null;
 }
 
+function rollupInventory() {
+  let items = 0;
+  let value = 0;
+  for (const room of state.rooms) {
+    const list = room.items || [];
+    room.item_count = list.length;
+    let roomValue = 0;
+    for (const item of list) {
+      const n = Number(item.replacement_value);
+      if (Number.isFinite(n)) roomValue += n;
+    }
+    room.replacement_total = roomValue.toFixed(2);
+    items += list.length;
+    value += roomValue;
+  }
+  return { items, value };
+}
+
 function syncNav() {
+  const totals = rollupInventory();
   const libEm = $("[data-open-library] em");
   if (libEm) libEm.textContent = String(state.books.length);
   $$("[data-open-library]").forEach((el) => {
@@ -63,6 +82,14 @@ function syncNav() {
     const em = el.querySelector("em");
     if (room && em) em.textContent = String(room.item_count ?? room.items?.length ?? 0);
   });
+  const summary = $(".nav-value");
+  if (summary) {
+    const formatted = totals.value.toLocaleString("en-US", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+    summary.textContent = `${totals.items} household items · $${formatted}`;
+  }
 }
 
 function setStageChrome() {
@@ -316,8 +343,7 @@ function inspectItem(item) {
     if (!confirm("Remove this household item?")) return;
     await api(`/api/items/${item.id}`, { method: "DELETE" });
     const room = currentRoom();
-    if (room) room.items = room.items.filter((i) => i.id !== item.id);
-    room.item_count = room.items.length;
+    if (room) room.items = (room.items || []).filter((i) => i.id !== item.id);
     state.selectedItemId = null;
     renderAll();
   });
@@ -547,7 +573,6 @@ $("#item-form")?.addEventListener("submit", async (event) => {
     if (room) {
       room.items = room.items || [];
       room.items.push(item);
-      room.item_count = room.items.length;
     }
     closeSheet("add-item");
     selectItem(item.id, true);

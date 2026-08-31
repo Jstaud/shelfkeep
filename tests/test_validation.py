@@ -31,6 +31,23 @@ def test_replacement_value_rejects_nan_and_infinity(auth_client):
         assert "number" in response.json()["detail"].lower()
 
 
+def test_replacement_value_rejects_numeric_12_2_overflow(auth_client):
+    room = auth_client.post("/api/rooms", json={"name": "Vault"})
+    room_id = room.json()["id"]
+    for bad in ("10000000000.00", "99999999999", "1e12"):
+        response = auth_client.post(
+            "/api/items",
+            data={"room_id": str(room_id), "name": "Safe", "replacement_value": bad},
+        )
+        assert response.status_code == 400, bad
+        assert "too large" in response.json()["detail"].lower()
+    ok = auth_client.post(
+        "/api/items",
+        data={"room_id": str(room_id), "name": "Watch", "replacement_value": "9999999999.99"},
+    )
+    assert ok.status_code == 201, ok.text
+
+
 def test_item_string_fields_respect_column_limits(auth_client):
     room = auth_client.post("/api/rooms", json={"name": "Study"})
     room_id = room.json()["id"]

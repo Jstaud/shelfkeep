@@ -168,31 +168,34 @@ async def create_item(
 
     photo_path = None
     receipt_path = None
+    persisted = False
     try:
         if photo and photo.filename:
             photo_path = await save_upload(photo, "photos")
         if receipt and receipt.filename:
             receipt_path = await save_upload(receipt, "receipts", receipt=True)
-    except HTTPException:
-        delete_stored_file(photo_path)
-        delete_stored_file(receipt_path)
+        item = HouseholdItem(
+            room_id=room.id,
+            name=item_name,
+            brand=item_brand,
+            model=item_model,
+            serial_number=item_serial,
+            purchase_date=parsed_date,
+            replacement_value=parsed_value,
+            photo_path=photo_path,
+            receipt_path=receipt_path,
+            notes=_blank(notes),
+        )
+        db.add(item)
+        db.commit()
+        persisted = True
+        db.refresh(item)
+    except Exception:
+        if not persisted:
+            db.rollback()
+            delete_stored_file(photo_path)
+            delete_stored_file(receipt_path)
         raise
-
-    item = HouseholdItem(
-        room_id=room.id,
-        name=item_name,
-        brand=item_brand,
-        model=item_model,
-        serial_number=item_serial,
-        purchase_date=parsed_date,
-        replacement_value=parsed_value,
-        photo_path=photo_path,
-        receipt_path=receipt_path,
-        notes=_blank(notes),
-    )
-    db.add(item)
-    db.commit()
-    db.refresh(item)
     item.room = room
     return item_out(item)
 
@@ -275,9 +278,13 @@ def _parse_money(value: str | None) -> Decimal | None:
     if amount < 0:
         raise HTTPException(status_code=400, detail="Replacement value cannot be negative")
     try:
-        return amount.quantize(Decimal("0.01"))
+        quantized = amount.quantize(Decimal("0.01"))
     except InvalidOperation as exc:
         raise HTTPException(status_code=400, detail="Replacement value must be a number") from exc
+    # Numeric(12, 2) — 10 digits before the decimal, or Postgres raises on commit.
+    if quantized > Decimal("9999999999.99"):
+        raise HTTPException(status_code=400, detail="Replacement value is too large")
+    return quantized
 
 
 async def _cache_cover(url: str) -> str | None:

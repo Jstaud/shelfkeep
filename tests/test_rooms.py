@@ -1,6 +1,7 @@
 from io import BytesIO
 
 from PIL import Image
+from sqlalchemy.orm import Session
 
 from app.config import settings
 
@@ -68,6 +69,35 @@ def test_invalid_receipt_does_not_leave_orphan_photo(auth_client):
     assert response.status_code == 400
     after = {path.name for path in photos_dir.glob("*")}
     assert after == before
+
+
+def test_failed_item_commit_removes_uploads(auth_client, monkeypatch):
+    room = auth_client.post("/api/rooms", json={"name": "Cellar"})
+    room_id = room.json()["id"]
+    photos_dir = settings.uploads_dir / "photos"
+    receipts_dir = settings.uploads_dir / "receipts"
+    photos_dir.mkdir(parents=True, exist_ok=True)
+    receipts_dir.mkdir(parents=True, exist_ok=True)
+    before_photos = {path.name for path in photos_dir.glob("*")}
+    before_receipts = {path.name for path in receipts_dir.glob("*")}
+
+    def fail_commit(self):
+        raise RuntimeError("commit failed")
+
+    monkeypatch.setattr(Session, "commit", fail_commit)
+    try:
+        auth_client.post(
+            "/api/items",
+            data={"room_id": str(room_id), "name": "Cask"},
+            files={
+                "photo": ("cask.png", _png_bytes(), "image/png"),
+                "receipt": ("receipt.png", _png_bytes(), "image/png"),
+            },
+        )
+    except RuntimeError:
+        pass
+    assert {path.name for path in photos_dir.glob("*")} == before_photos
+    assert {path.name for path in receipts_dir.glob("*")} == before_receipts
 
 
 def test_delete_item_removes_photo_from_volume(auth_client):
