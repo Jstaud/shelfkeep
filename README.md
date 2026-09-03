@@ -4,7 +4,17 @@ Self-hosted catalog for the things you keep: a library you browse like a room, a
 
 Add a book by ISBN, title, or by hand and see it on a wooden shelf with cover art. Walk rooms, photograph household items, and keep serial numbers, purchase dates, replacement values, and receipts — insurance-friendly without becoming a spreadsheet.
 
-Shelfkeep is a web app (responsive, installable as a PWA). It is not Mac-only. `docker compose up` is the happy path. There is no required cloud account.
+Shelfkeep is a web app (responsive, installable as a PWA). It is not Mac-only. `docker compose up` is the happy path. There is no required cloud account. [MIT](LICENSE). See [CHANGELOG](CHANGELOG.md) for v1.0.0, [SECURITY](SECURITY.md) for the default-password warning, and [CONTRIBUTING](CONTRIBUTING.md) if you want to help.
+
+## Screenshots
+
+Library shelf — *Dune* on the plank, Open Library cover, inspector on the right.
+
+![Library shelf with Dune and the inspector](docs/screenshots/library-shelf.png)
+
+Kitchen — a household item on the same kind of shelf, with serial and replacement value.
+
+![Kitchen room with a stand mixer](docs/screenshots/kitchen-room.png)
 
 ## Why
 
@@ -48,6 +58,10 @@ Data lives in Docker volumes:
 - `uploads` — cover art, item photos, receipts
 
 Stop with `Ctrl+C`, or `docker compose down`. Volumes persist until you `docker compose down -v`.
+
+Compose is the whole deploy story: two services, two volumes, port `8080`. There is no Kubernetes manifest and no published registry image — `up --build` builds from the [Dockerfile](Dockerfile) on your machine.
+
+The first `up --build` compiles the Python image (a minute or two). The app waits until Postgres is healthy, then serves `/` and `/healthz`. Leave `SESSION_SECRET` blank so a unique cookie key is written under the `uploads` volume. Do **not** set `DATABASE_URL` in `.env` for Compose; a host SQLite URL would be the wrong database. If port `8080` is already taken, stop the other process or change the published port on the `app` service.
 
 ### Without Docker
 
@@ -107,4 +121,5 @@ Those are future work, not part of this first slice.
 
 ## License
 
-[MIT](LICENSE).
+[MIT](LICENSE). Please read [SECURITY](SECURITY.md) before exposing an instance,
+and [CONTRIBUTING](CONTRIBUTING.md) before sending a patch.
