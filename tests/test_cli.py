@@ -130,5 +130,7 @@ def test_readme_docker_run_binds_localhost():
     standalone = readme.split("Standalone `docker run`")[1].split("### 3.")[0]
     assert "-p 8080:8080" not in standalone
     assert "SHELFKEEP_PASSWORD='your-password-here'" in standalone
-    assert "Rosetta" in readme
+    assert "-p 127.0.0.1:8080:8080" in standalone
     assert "does **not** run on Intel Macs" in readme
+    assert "`macos-15`" in readme
+    assert "arm64-only" in readme

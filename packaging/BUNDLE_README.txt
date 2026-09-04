@@ -44,9 +44,10 @@ developer." That is expected without a paid signing certificate.
   1. Right-click the binary → Open → Open, or
   2. xattr -d com.apple.quarantine ./shelfkeep
 
-CI currently publishes an Apple Silicon (arm64) binary from macos-latest.
-That build does not run on Intel Macs (Rosetta is the other direction).
-On Intel, build from source with PyInstaller (packaging/shelfkeep.spec).
+CI currently publishes an Apple Silicon (arm64) binary from the macos-15
+runner. That asset is arm64-only and does not run on Intel Macs. An Intel
+release job is not in this slice — on Intel, build from source with
+PyInstaller (packaging/shelfkeep.spec).
 
 License: MIT. Compose + Postgres remains the documented happy path.
 See https://github.com/Jstaud/shelfkeep

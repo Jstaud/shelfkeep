@@ -138,11 +138,10 @@ account). After download, macOS may block the binary. Right-click → Open, or:
 xattr -d com.apple.quarantine ./shelfkeep
 ```
 
-CI publishes **Apple Silicon (arm64)** from `macos-latest` (GitHub's standard
-macOS runner is arm64). That binary does **not** run on Intel Macs — Rosetta
-only translates Intel apps on Apple Silicon, not the other way around. On
-Intel, build from this repo with PyInstaller (`packaging/shelfkeep.spec`).
-Linux CI publishes **x86_64**.
+CI publishes an **Apple Silicon (arm64)** binary from the `macos-15` runner.
+That asset is arm64-only and does **not** run on Intel Macs. An Intel
+release job is not in this slice — on Intel, build from this repo with
+PyInstaller (`packaging/shelfkeep.spec`). Linux CI publishes **x86_64**.
 
 **Producing assets for `v1.0.0` or the next tag.** After this workflow is
 on `main`, do **not** retag from a packaging PR. Either:

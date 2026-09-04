@@ -13,7 +13,7 @@ maintainer after merge.
 - GitHub Actions publishes `ghcr.io/jstaud/shelfkeep` on `v*` tags (also
   `latest`) and on `main`. Compose can pull that image via `SHELFKEEP_IMAGE`
   instead of `up --build`.
-- Linux (`ubuntu-latest`, x86_64) and macOS (`macos-latest`, arm64) PyInstaller
+- Linux (`ubuntu-latest`, x86_64) and macOS (`macos-15`, arm64) PyInstaller
   binaries attached to GitHub Releases on `v*` tags. `workflow_dispatch` can
   attach assets to an existing tag such as `v1.0.0`.
 - `shelfkeep` / `shelfkeep serve` CLI: binds `127.0.0.1:8080` by default,
