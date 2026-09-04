@@ -37,17 +37,19 @@ def build_parser() -> argparse.ArgumentParser:
         version=f"Shelfkeep {__version__}",
     )
 
+    # Child options use SUPPRESS so ``shelfkeep --host 127.0.0.1 serve``
+    # is not overwritten by serve's env-based defaults.
     common = argparse.ArgumentParser(add_help=False)
     common.add_argument(
         "--host",
-        default=default_host(),
+        default=argparse.SUPPRESS,
         help="Bind address (default 127.0.0.1; SHELFKEEP_HOST). "
         "Use 0.0.0.0 to listen on all interfaces.",
     )
     common.add_argument(
         "--port",
         type=int,
-        default=default_port(),
+        default=argparse.SUPPRESS,
         help="Bind port (default 8080; SHELFKEEP_PORT).",
     )
 

@@ -57,6 +57,27 @@ def test_parse_args_reads_host_port_env(monkeypatch):
     assert args.port == 9090
 
 
+def test_host_before_serve_overrides_env(monkeypatch):
+    monkeypatch.setenv("SHELFKEEP_HOST", "0.0.0.0")
+    args = parse_args(["--host", "127.0.0.1", "serve"])
+    assert args.command == "serve"
+    assert args.host == "127.0.0.1"
+
+
+def test_host_after_serve_overrides_env(monkeypatch):
+    monkeypatch.setenv("SHELFKEEP_HOST", "0.0.0.0")
+    args = parse_args(["serve", "--host", "127.0.0.1"])
+    assert args.command == "serve"
+    assert args.host == "127.0.0.1"
+
+
+def test_port_before_serve_is_kept():
+    args = parse_args(["--port", "9090", "serve"])
+    assert args.command == "serve"
+    assert args.port == 9090
+    assert args.host == "127.0.0.1"
+
+
 def test_default_data_dir_is_local_in_source_tree():
     assert default_data_dir() == Path("./data")
 
