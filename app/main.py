@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import sys
 import time
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -24,7 +25,16 @@ from app.uploads import ensure_dirs, safe_join
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger("shelfkeep")
 
-APP_DIR = Path(__file__).resolve().parent
+def _package_dir() -> Path:
+    """Directory that contains templates/ and static/ (source or frozen)."""
+    if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
+        bundled = Path(sys._MEIPASS) / "app"
+        if (bundled / "templates").is_dir():
+            return bundled
+    return Path(__file__).resolve().parent
+
+
+APP_DIR = _package_dir()
 
 
 @asynccontextmanager

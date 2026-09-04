@@ -57,10 +57,14 @@ minimal reproduction. You should hear back within a few days.
 ## Deployment notes
 
 - Bind the HTTP server as Compose does (`0.0.0.0:8080` inside the container,
-  published to your host). Put TLS in front if you leave localhost.
+  published to your host). The packaged `shelfkeep` binary binds
+  `127.0.0.1:8080` unless you pass `--host`. Put TLS in front if you leave
+  localhost.
 - Set `SESSION_HTTPS_ONLY=true` when you terminate TLS.
 - Postgres credentials in Compose are for the local database. Change
   `POSTGRES_PASSWORD` if the database port is reachable beyond the Compose
   network.
-- There is no official GHCR (or other registry) image in v1. Build with
-  `docker compose up --build`.
+- Official image: `ghcr.io/jstaud/shelfkeep` (see the README). Compose
+  `up --build` still builds from the Dockerfile and does not require a
+  registry. Make the GHCR package public after the first push if pulls
+  should work without a GitHub login.

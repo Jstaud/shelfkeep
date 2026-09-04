@@ -1,0 +1,2 @@
+# Only needed to produce release binaries. Not installed in the Docker image.
+pyinstaller==6.15.0

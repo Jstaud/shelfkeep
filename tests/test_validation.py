@@ -98,6 +98,7 @@ def test_compose_does_not_ship_a_public_session_secret():
     for leaked in ("change-this-session-secret", "replace-with-a-long-random-string"):
         assert leaked not in compose
         assert leaked not in example
+    assert "SESSION_SECRET: ${SESSION_SECRET:-}" in compose
 
 
 def test_explicit_session_secret_is_kept(tmp_path: Path):
