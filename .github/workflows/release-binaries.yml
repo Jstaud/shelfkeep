@@ -21,8 +21,12 @@ jobs:
         include:
           - os: ubuntu-latest
             artifact_os: linux
+            artifact_arch: x86_64
+          # macos-latest is GitHub's standard Apple Silicon runner (arm64).
+          # Fail below if that ever changes, rather than mis-name the tarball.
           - os: macos-latest
             artifact_os: macos
+            artifact_arch: arm64
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -52,12 +56,18 @@ jobs:
       - name: Archive
         id: archive
         run: |
-          arch=$(uname -m)
-          case "$arch" in
-            x86_64) arch=x86_64 ;;
-            arm64|aarch64) arch=arm64 ;;
+          actual=$(uname -m)
+          case "$actual" in
+            x86_64) actual=x86_64 ;;
+            arm64|aarch64) actual=arm64 ;;
           esac
-          stem="shelfkeep-${{ matrix.artifact_os }}-${arch}"
+          expected="${{ matrix.artifact_arch }}"
+          if [ "$actual" != "$expected" ]; then
+            echo "Runner arch is $actual; this job advertises $expected." >&2
+            echo "Pin an arm64 macOS label (macos-latest / macos-26) or update the matrix." >&2
+            exit 1
+          fi
+          stem="shelfkeep-${{ matrix.artifact_os }}-${expected}"
           chmod +x packaging/build_archive.sh
           packaging/build_archive.sh dist/shelfkeep "$stem"
           echo "stem=${stem}" >> "$GITHUB_OUTPUT"

@@ -80,13 +80,16 @@ def test_user_data_dir_darwin(monkeypatch, tmp_path):
     assert user_data_dir() == tmp_path / "Library" / "Application Support" / "shelfkeep"
 
 
-def test_default_sqlite_follows_data_dir(tmp_path):
-    settings = Settings(data_dir=tmp_path, database_url=DEFAULT_SQLITE_URL)
+def test_default_sqlite_follows_data_dir(tmp_path, monkeypatch):
+    monkeypatch.delenv("DATABASE_URL", raising=False)
+    settings = Settings(data_dir=tmp_path)
+    assert "database_url" not in settings.model_fields_set
     assert settings.resolved_database_url == sqlite_url_for(tmp_path)
     assert str(tmp_path / "shelfkeep.db") in settings.resolved_database_url
 
 
-def test_explicit_database_url_wins(tmp_path):
+def test_explicit_database_url_wins(tmp_path, monkeypatch):
+    monkeypatch.delenv("DATABASE_URL", raising=False)
     settings = Settings(
         data_dir=tmp_path,
         database_url="sqlite+pysqlite:////tmp/custom.db",
@@ -94,9 +97,16 @@ def test_explicit_database_url_wins(tmp_path):
     assert settings.resolved_database_url == "sqlite+pysqlite:////tmp/custom.db"
 
 
-def test_postgres_host_still_wins_over_sqlite_default():
+def test_explicit_default_sqlite_url_is_not_rewritten(tmp_path, monkeypatch):
+    monkeypatch.delenv("DATABASE_URL", raising=False)
+    settings = Settings(data_dir=tmp_path, database_url=DEFAULT_SQLITE_URL)
+    assert "database_url" in settings.model_fields_set
+    assert settings.resolved_database_url == DEFAULT_SQLITE_URL
+
+
+def test_postgres_host_still_wins_over_sqlite_default(monkeypatch):
+    monkeypatch.delenv("DATABASE_URL", raising=False)
     settings = Settings(
-        database_url=DEFAULT_SQLITE_URL,
         postgres_host="db",
         postgres_user="shelfkeep",
         postgres_password="secret",
@@ -112,3 +122,13 @@ def test_compose_keeps_local_build_and_optional_image():
     assert "SHELFKEEP_IMAGE" in compose
     assert "ghcr.io/jstaud/shelfkeep" in compose
     assert "kind: Deployment" not in compose
+
+
+def test_readme_docker_run_binds_localhost():
+    readme = Path("README.md").read_text(encoding="utf-8")
+    assert "-p 127.0.0.1:8080:8080" in readme
+    standalone = readme.split("Standalone `docker run`")[1].split("### 3.")[0]
+    assert "-p 8080:8080" not in standalone
+    assert "SHELFKEEP_PASSWORD='your-password-here'" in standalone
+    assert "Rosetta" in readme
+    assert "does **not** run on Intel Macs" in readme

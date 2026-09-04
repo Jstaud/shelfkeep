@@ -19,6 +19,8 @@ maintainer after merge.
 - `shelfkeep` / `shelfkeep serve` CLI: binds `127.0.0.1:8080` by default,
   SQLite under a user-writable `DATA_DIR`, same env vars as Compose.
 - README install options: Compose (primary), GHCR image, Linux/macOS binary.
+  Standalone `docker run` binds `127.0.0.1`; macOS asset is arm64-only
+  (Intel builds from source; no Rosetta claim).
 
 ## [1.0.0] - 2026-09-04
 

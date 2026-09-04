@@ -128,10 +128,11 @@ class Settings(BaseSettings):
                 database=self.postgres_db or "shelfkeep",
                 port=self.postgres_port,
             )
-        # Default SQLite follows DATA_DIR so `docker run` and packaged
-        # binaries keep the database next to uploads. An explicit
-        # DATABASE_URL (env or .env) still wins.
-        if self.database_url == DEFAULT_SQLITE_URL:
+        # Unset DATABASE_URL: SQLite follows DATA_DIR so `docker run` and
+        # packaged binaries keep the database next to uploads. An explicit
+        # DATABASE_URL (constructor, env, or .env) is left as written, even
+        # when its string equals the documented default.
+        if "database_url" not in self.model_fields_set:
             return sqlite_url_for(self.data_dir)
         return self.database_url
 

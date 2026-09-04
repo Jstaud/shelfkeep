@@ -89,12 +89,15 @@ plus `build: .`, so `up --build` stays the local happy path.
 
 ```bash
 docker pull ghcr.io/jstaud/shelfkeep:latest
-docker run --rm -p 8080:8080 \
-  -e SHELFKEEP_PASSWORD=changeme \
+docker run --rm -p 127.0.0.1:8080:8080 \
+  -e SHELFKEEP_PASSWORD='your-password-here' \
   -e DATA_DIR=/data \
   -v shelfkeep-data:/data \
   ghcr.io/jstaud/shelfkeep:latest
 ```
+
+`-p 127.0.0.1:8080:8080` keeps the port on loopback. Do not publish `8080:8080`
+(all interfaces) while the default `changeme` password is still in use.
 
 Uploads and the SQLite file live in the `shelfkeep-data` volume. Point
 `DATABASE_URL` at Postgres if you already have a database.
@@ -135,9 +138,11 @@ account). After download, macOS may block the binary. Right-click → Open, or:
 xattr -d com.apple.quarantine ./shelfkeep
 ```
 
-CI publishes **Apple Silicon (arm64)** from `macos-latest`. Intel Macs can
-run that build under Rosetta, or build from this repo with PyInstaller
-(`packaging/shelfkeep.spec`). Linux CI publishes **x86_64**.
+CI publishes **Apple Silicon (arm64)** from `macos-latest` (GitHub's standard
+macOS runner is arm64). That binary does **not** run on Intel Macs — Rosetta
+only translates Intel apps on Apple Silicon, not the other way around. On
+Intel, build from this repo with PyInstaller (`packaging/shelfkeep.spec`).
+Linux CI publishes **x86_64**.
 
 **Producing assets for `v1.0.0` or the next tag.** After this workflow is
 on `main`, do **not** retag from a packaging PR. Either:
