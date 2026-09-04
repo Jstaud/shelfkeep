@@ -13,17 +13,27 @@ on:
 
 # First publish of ghcr.io/jstaud/shelfkeep may be private until the
 # package visibility is set to public in GitHub → Packages.
+#
+# Publishing is restricted to this repository (not forks) and to the
+# `release` GitHub Environment. In Settings → Environments → release,
+# require reviewers and limit deployment branches/tags to `main` and `v*`.
+# workflow_dispatch stays available for trusted manual publishes; it still
+# needs both the repo gate and environment approval.
 
 permissions:
   contents: read
-  packages: write
 
 env:
   REGISTRY: ghcr.io
 
 jobs:
   build-and-push:
+    if: github.repository == 'Jstaud/shelfkeep'
+    environment: release
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
     steps:
       - uses: actions/checkout@v4
 
