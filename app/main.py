@@ -72,8 +72,7 @@ def _seed_library() -> None:
 app = FastAPI(
     title="Shelfkeep",
     version=__version__,
-    description="Self-hosted catalog and home inventory. Original software, not affiliated "
-    "with Delicious Monster or Under My Roof.",
+    description="Self-hosted catalog and home inventory.",
     lifespan=lifespan,
 )
 

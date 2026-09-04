@@ -2,7 +2,15 @@ import asyncio
 import json
 from unittest.mock import AsyncMock
 
-from app.metadata import book_from_ol_data, lookup_isbn, looks_like_isbn, normalize_isbn, search_title
+from app import __version__
+from app.metadata import (
+    USER_AGENT,
+    book_from_ol_data,
+    lookup_isbn,
+    looks_like_isbn,
+    normalize_isbn,
+    search_title,
+)
 from app.schemas import BookCreate
 
 
@@ -102,3 +110,9 @@ def test_malformed_fallback_covers_does_not_raise():
     result = asyncio.run(lookup_isbn("9780547928227", client=client))
     assert result is not None
     assert result.title == "The Hobbit"
+
+
+def test_user_agent_matches_app_version():
+    assert USER_AGENT.startswith(f"Shelfkeep/{__version__} ")
+    assert "0.1" not in USER_AGENT
+    assert "github.com/Jstaud/shelfkeep" in USER_AGENT

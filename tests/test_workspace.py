@@ -1,5 +1,19 @@
 from pathlib import Path
 
+COMPETITOR_NAMES = (
+    "Delicious Monster",
+    "Delicious Library",
+    "Under My Roof",
+    "Delicious",
+)
+
+
+def _assert_stand_alone_chrome(html: str) -> None:
+    for name in COMPETITOR_NAMES:
+        assert name not in html
+    assert "Open Library" in html
+    assert "Shelfkeep" in html
+
 
 def test_workspace_is_three_panes(auth_client):
     page = auth_client.get("/")
@@ -10,8 +24,22 @@ def test_workspace_is_three_panes(auth_client):
     assert "Collections" in page.text
     assert "Rooms" in page.text
     assert 'class="nav-value"' in page.text
-    assert "Delicious Library" not in page.text or "Not affiliated" in page.text
-    assert "Delicious Monster" in page.text  # affiliation disclaimer only
+    _assert_stand_alone_chrome(page.text)
+
+
+def test_login_and_openapi_have_no_competitor_names(client, auth_client):
+    login = client.get("/login")
+    assert login.status_code == 200
+    for name in COMPETITOR_NAMES:
+        assert name not in login.text
+    assert "Shelfkeep" in login.text
+
+    spec = auth_client.get("/openapi.json")
+    assert spec.status_code == 200
+    description = spec.json()["info"]["description"]
+    for name in COMPETITOR_NAMES:
+        assert name not in description
+    assert "self-hosted catalog" in description.lower()
 
 
 def test_workspace_js_refreshes_inventory_summary():
