@@ -11,9 +11,10 @@ way.
   Roof. Do not copy their trademarks, word marks, artwork, copy, icons, or
   proprietary library formats. The UI is original — inspired by the *feeling*
   of real shelves, not a clone of any commercial app.
-- **Self-hosted.** Do not add a required cloud account, a Kubernetes manifest,
-  or a published registry image as the happy path. `docker compose up` stays
-  enough.
+- **Self-hosted.** Do not add a required cloud account or a Kubernetes
+  manifest. `docker compose up --build` stays enough. The GHCR image and
+  release binaries are optional; they must not become a required cloud
+  account for end users.
 - **Open Library only** for book lookup. No Amazon (or other retailer)
   scraping, and no import of proprietary Delicious Library libraries.
 

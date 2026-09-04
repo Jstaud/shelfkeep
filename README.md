@@ -38,11 +38,16 @@ The interface is inspired by the *feeling* of browsing real shelves — not a cl
 - PWA manifest and a small offline app-shell cache
 - Postgres + persisted volumes via Docker Compose
 
-## Run locally
+## Install
 
-### Docker Compose (recommended)
+Three ways to run Shelfkeep. **Docker Compose + Postgres is the happy path.**
+There is no required cloud account and no Kubernetes. End users do not need
+a GitHub account to pull the public image or download a release binary.
 
-You need Docker and Docker Compose.
+### 1. Docker Compose (recommended)
+
+You need Docker and Docker Compose. This builds the image locally and runs
+Postgres beside the app.
 
 ```bash
 cp .env.example .env
@@ -59,11 +64,94 @@ Data lives in Docker volumes:
 
 Stop with `Ctrl+C`, or `docker compose down`. Volumes persist until you `docker compose down -v`.
 
-Compose is the whole deploy story: two services, two volumes, port `8080`. There is no Kubernetes manifest and no published registry image — `up --build` builds from the [Dockerfile](Dockerfile) on your machine.
-
 The first `up --build` compiles the Python image (a minute or two). The app waits until Postgres is healthy, then serves `/` and `/healthz`. Leave `SESSION_SECRET` blank so a unique cookie key is written under the `uploads` volume. Do **not** set `DATABASE_URL` in `.env` for Compose; a host SQLite URL would be the wrong database. If port `8080` is already taken, stop the other process or change the published port on the `app` service.
 
-### Without Docker
+### 2. Published Docker image (GHCR)
+
+The same [Dockerfile](Dockerfile) is published as `ghcr.io/jstaud/shelfkeep`
+on `v*` tags (also tagged `latest`) and on `main`. No GitHub login is required
+once the package is public.
+
+**Compose, using the image instead of a local build:**
+
+```bash
+cp .env.example .env
+# Edit .env: set SHELFKEEP_PASSWORD. Leave SESSION_SECRET blank.
+export SHELFKEEP_IMAGE=ghcr.io/jstaud/shelfkeep:latest
+docker compose pull app
+docker compose up
+```
+
+`docker-compose.yml` already declares `image: ${SHELFKEEP_IMAGE:-shelfkeep:local}`
+plus `build: .`, so `up --build` stays the local happy path.
+
+**Standalone `docker run` (SQLite, no Postgres):**
+
+```bash
+docker pull ghcr.io/jstaud/shelfkeep:latest
+docker run --rm -p 127.0.0.1:8080:8080 \
+  -e SHELFKEEP_PASSWORD='your-password-here' \
+  -e DATA_DIR=/data \
+  -v shelfkeep-data:/data \
+  ghcr.io/jstaud/shelfkeep:latest
+```
+
+`-p 127.0.0.1:8080:8080` keeps the port on loopback. Do not publish `8080:8080`
+(all interfaces) while the default `changeme` password is still in use.
+
+Uploads and the SQLite file live in the `shelfkeep-data` volume. Point
+`DATABASE_URL` at Postgres if you already have a database.
+
+Pin a version with `ghcr.io/jstaud/shelfkeep:1.0.1` (or whatever tag you
+published). Image tags are lowercase (`jstaud`), matching GHCR.
+
+### 3. Linux or macOS binary
+
+Download a release tarball from
+[GitHub Releases](https://github.com/Jstaud/shelfkeep/releases)
+(`shelfkeep-linux-x86_64.tar.gz` or `shelfkeep-macos-arm64.tar.gz`).
+No Docker and no Python install.
+
+```bash
+tar -xzf shelfkeep-linux-x86_64.tar.gz
+cd shelfkeep-linux-x86_64
+./shelfkeep                 # or: ./install.sh  then  shelfkeep
+# http://127.0.0.1:8080
+```
+
+`install.sh` copies the binary to `~/.local/bin`. The process binds
+**127.0.0.1:8080** by default (`SHELFKEEP_HOST` / `SHELFKEEP_PORT` or
+`shelfkeep serve --host … --port …`).
+
+Data defaults to a user-writable directory (SQLite + uploads):
+
+- Linux: `~/.local/share/shelfkeep`
+- macOS: `~/Library/Application Support/shelfkeep`
+
+Override with `DATA_DIR`. Optional Postgres: set `DATABASE_URL` (same
+SQLAlchemy URL as a source install). Other env vars match the table below.
+
+**macOS Gatekeeper.** CI builds are **unsigned** (no paid Apple Developer
+account). After download, macOS may block the binary. Right-click → Open, or:
+
+```bash
+xattr -d com.apple.quarantine ./shelfkeep
+```
+
+CI publishes an **Apple Silicon (arm64)** binary from the `macos-15` runner.
+That asset is arm64-only and does **not** run on Intel Macs. An Intel
+release job is not in this slice — on Intel, build from this repo with
+PyInstaller (`packaging/shelfkeep.spec`). Linux CI publishes **x86_64**.
+
+**Producing assets for `v1.0.0` or the next tag.** After this workflow is
+on `main`, do **not** retag from a packaging PR. Either:
+
+- push the next `v*` tag — GHCR and binaries publish automatically, or
+- dry-run / attach to the existing tag from Actions → **Release binaries**
+  → Run workflow, with `attach_to_tag` set to `v1.0.0`, and **GHCR** with
+  `image_tag` set to `1.0.0` (and `latest` if you want).
+
+### Without Docker (Python source)
 
 Python 3.12+ is enough. Shelfkeep will use SQLite under `./data` if `DATABASE_URL` is unset.
 
@@ -75,6 +163,7 @@ export SHELFKEEP_USERNAME=admin
 export SHELFKEEP_PASSWORD=changeme
 export SESSION_SECRET=dev-only-secret
 uvicorn app.main:app --reload --port 8080
+# or: python -m app serve --port 8080
 ```
 
 ### Tests
@@ -91,16 +180,18 @@ pytest -q
 | `SHELFKEEP_USERNAME` | Local login name (default `admin`) |
 | `SHELFKEEP_PASSWORD` | Local login password (change this) |
 | `SESSION_SECRET` | Cookie signing key. If unset or a documented placeholder, a unique key is generated and persisted under `DATA_DIR` |
-| `DATABASE_URL` | SQLAlchemy URL for non-Docker runs. Compose does not set this; the app builds an encoded URL from `POSTGRES_HOST` + `POSTGRES_*` |
+| `DATABASE_URL` | SQLAlchemy URL for non-Compose runs. Compose does not set this; the app builds an encoded URL from `POSTGRES_HOST` + `POSTGRES_*`. Binary / `docker run` default to SQLite under `DATA_DIR` |
 | `POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_DB` | Compose Postgres credentials (URL-encoded by the app) |
-| `DATA_DIR` | Where uploads are stored (Compose: `/data`) |
+| `DATA_DIR` | Uploads + generated session secret (Compose / image: `/data`; source: `./data`; Linux binary: `~/.local/share/shelfkeep`; macOS binary: `~/Library/Application Support/shelfkeep`) |
+| `SHELFKEEP_HOST` / `SHELFKEEP_PORT` | Bind address for `shelfkeep` / `shelfkeep serve` (default `127.0.0.1` / `8080`). The Docker image still listens on `0.0.0.0:8080` |
+| `SHELFKEEP_IMAGE` | Compose image name (default `shelfkeep:local`). Set to `ghcr.io/jstaud/shelfkeep:latest` to pull instead of building |
 | `SESSION_HTTPS_ONLY` | Set `true` if you terminate TLS in front of the app |
 
 The process logs a warning if the default login password is still in use. A missing or placeholder `SESSION_SECRET` is never used to sign cookies.
 
 ## Stack
 
-Boring on purpose: **FastAPI**, **SQLAlchemy**, **PostgreSQL** (SQLite for tests / no-Docker), vanilla HTML/CSS/JS, Docker Compose. No Kubernetes, no cloud account, no extra JS build step.
+Boring on purpose: **FastAPI**, **SQLAlchemy**, **PostgreSQL** (SQLite for tests / binaries / no-Docker), vanilla HTML/CSS/JS, Docker Compose. Optional GHCR image and PyInstaller binaries. No Kubernetes, no cloud account, no extra JS build step.
 
 Book lookup uses documented Open Library APIs:
 

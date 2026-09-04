@@ -1,7 +1,10 @@
+import os
 import secrets
+import sys
 from pathlib import Path
 from urllib.parse import quote
 
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # Documented placeholders that must never sign cookies in a running instance.
@@ -13,6 +16,38 @@ INSECURE_SESSION_SECRETS = frozenset(
     }
 )
 SESSION_SECRET_FILENAME = ".session_secret"
+DEFAULT_SQLITE_URL = "sqlite+pysqlite:///./data/shelfkeep.db"
+DEV_DATA_DIR = Path("./data")
+
+
+def is_frozen() -> bool:
+    """True when running from a PyInstaller (or similar) bundle."""
+    return bool(getattr(sys, "frozen", False))
+
+
+def user_data_dir() -> Path:
+    """User-writable data directory for packaged binaries."""
+    if sys.platform == "darwin":
+        return Path.home() / "Library" / "Application Support" / "shelfkeep"
+    if sys.platform == "win32":
+        base = os.environ.get("LOCALAPPDATA") or os.environ.get("APPDATA")
+        if base:
+            return Path(base) / "shelfkeep"
+        return Path.home() / "AppData" / "Local" / "shelfkeep"
+    xdg = os.environ.get("XDG_DATA_HOME")
+    if xdg:
+        return Path(xdg) / "shelfkeep"
+    return Path.home() / ".local" / "share" / "shelfkeep"
+
+
+def default_data_dir() -> Path:
+    if is_frozen():
+        return user_data_dir()
+    return DEV_DATA_DIR
+
+
+def sqlite_url_for(data_dir: Path) -> str:
+    return f"sqlite+pysqlite:///{data_dir / 'shelfkeep.db'}"
 
 
 def postgres_database_url(
@@ -71,7 +106,7 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    database_url: str = "sqlite+pysqlite:///./data/shelfkeep.db"
+    database_url: str = DEFAULT_SQLITE_URL
     postgres_host: str | None = None
     postgres_port: int = 5432
     postgres_user: str | None = None
@@ -80,7 +115,7 @@ class Settings(BaseSettings):
     shelfkeep_username: str = "admin"
     shelfkeep_password: str = "changeme"
     session_secret: str = ""
-    data_dir: Path = Path("./data")
+    data_dir: Path = Field(default_factory=default_data_dir)
     session_https_only: bool = False
 
     @property
@@ -93,6 +128,12 @@ class Settings(BaseSettings):
                 database=self.postgres_db or "shelfkeep",
                 port=self.postgres_port,
             )
+        # Unset DATABASE_URL: SQLite follows DATA_DIR so `docker run` and
+        # packaged binaries keep the database next to uploads. An explicit
+        # DATABASE_URL (constructor, env, or .env) is left as written, even
+        # when its string equals the documented default.
+        if "database_url" not in self.model_fields_set:
+            return sqlite_url_for(self.data_dir)
         return self.database_url
 
     @property

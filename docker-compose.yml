@@ -15,6 +15,10 @@ services:
     restart: unless-stopped
 
   app:
+    # Local builds tag as shelfkeep:local. To run the published GHCR image
+    # instead: SHELFKEEP_IMAGE=ghcr.io/jstaud/shelfkeep:latest docker compose pull app
+    # and then docker compose up (no --build).
+    image: ${SHELFKEEP_IMAGE:-shelfkeep:local}
     build: .
     ports:
       - "8080:8080"

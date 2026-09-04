@@ -13,3 +13,11 @@ data
 tests
 .idea
 .vscode
+packaging
+dist
+build
+docs
+CONTRIBUTING.md
+SECURITY.md
+CHANGELOG.md
+LICENSE
