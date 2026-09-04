@@ -57,14 +57,21 @@ def build_parser() -> argparse.ArgumentParser:
     sub.add_parser("serve", parents=[common], help="Start the web UI (default).")
     sub.add_parser("version", help="Print the application version and exit.")
 
-    # ``shelfkeep --host/--port`` without a subcommand also serves.
-    parser.add_argument("--host", default=default_host(), help=argparse.SUPPRESS)
-    parser.add_argument("--port", type=int, default=default_port(), help=argparse.SUPPRESS)
+    # Defaults stay unset here so --help / --version do not parse SHELFKEEP_PORT.
+    parser.add_argument("--host", default=None, help=argparse.SUPPRESS)
+    parser.add_argument("--port", type=int, default=None, help=argparse.SUPPRESS)
     return parser
 
 
 def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     return build_parser().parse_args(list(argv) if argv is not None else None)
+
+
+def resolve_bind(args: argparse.Namespace) -> tuple[str, int]:
+    """Apply env defaults only when we are about to serve."""
+    host = args.host if args.host is not None else default_host()
+    port = args.port if args.port is not None else default_port()
+    return host, port
 
 
 def serve(host: str, port: int) -> int:
@@ -86,7 +93,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.command == "version":
         print(__version__)
         return 0
-    return serve(args.host, args.port)
+    host, port = resolve_bind(args)
+    return serve(host, port)
 
 
 if __name__ == "__main__":

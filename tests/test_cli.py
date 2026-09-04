@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 
 from app import __version__
-from app.cli import main, parse_args
+from app.cli import main, parse_args, resolve_bind
 from app.config import (
     DEFAULT_SQLITE_URL,
     Settings,
@@ -37,45 +37,63 @@ def test_cli_version_subcommand(capsys):
 
 def test_parse_args_defaults_to_localhost():
     args = parse_args([])
-    assert args.host == "127.0.0.1"
-    assert args.port == 8080
     assert args.command is None
+    assert resolve_bind(args) == ("127.0.0.1", 8080)
 
 
 def test_parse_args_serve_overrides():
     args = parse_args(["serve", "--host", "0.0.0.0", "--port", "9090"])
     assert args.command == "serve"
-    assert args.host == "0.0.0.0"
-    assert args.port == 9090
+    assert resolve_bind(args) == ("0.0.0.0", 9090)
 
 
 def test_parse_args_reads_host_port_env(monkeypatch):
     monkeypatch.setenv("SHELFKEEP_HOST", "0.0.0.0")
     monkeypatch.setenv("SHELFKEEP_PORT", "9090")
-    args = parse_args([])
-    assert args.host == "0.0.0.0"
-    assert args.port == 9090
+    assert resolve_bind(parse_args([])) == ("0.0.0.0", 9090)
 
 
 def test_host_before_serve_overrides_env(monkeypatch):
     monkeypatch.setenv("SHELFKEEP_HOST", "0.0.0.0")
     args = parse_args(["--host", "127.0.0.1", "serve"])
     assert args.command == "serve"
-    assert args.host == "127.0.0.1"
+    assert resolve_bind(args) == ("127.0.0.1", 8080)
 
 
 def test_host_after_serve_overrides_env(monkeypatch):
     monkeypatch.setenv("SHELFKEEP_HOST", "0.0.0.0")
     args = parse_args(["serve", "--host", "127.0.0.1"])
     assert args.command == "serve"
-    assert args.host == "127.0.0.1"
+    assert resolve_bind(args) == ("127.0.0.1", 8080)
 
 
 def test_port_before_serve_is_kept():
     args = parse_args(["--port", "9090", "serve"])
     assert args.command == "serve"
-    assert args.port == 9090
-    assert args.host == "127.0.0.1"
+    assert resolve_bind(args) == ("127.0.0.1", 9090)
+
+
+def test_help_and_version_survive_bad_shelfkeep_port(monkeypatch, capsys):
+    monkeypatch.setenv("SHELFKEEP_PORT", "not-a-port")
+    with pytest.raises(SystemExit) as help_exc:
+        main(["--help"])
+    assert help_exc.value.code == 0
+    assert "serve" in capsys.readouterr().out
+
+    with pytest.raises(SystemExit) as version_exc:
+        main(["--version"])
+    assert version_exc.value.code == 0
+    assert __version__ in capsys.readouterr().out
+
+    assert main(["version"]) == 0
+    assert capsys.readouterr().out.strip() == __version__
+
+
+def test_bad_shelfkeep_port_errors_only_when_serving(monkeypatch):
+    monkeypatch.setenv("SHELFKEEP_PORT", "not-a-port")
+    with pytest.raises(SystemExit, match="SHELFKEEP_PORT") as exc:
+        resolve_bind(parse_args([]))
+    assert "not-a-port" in str(exc.value)
 
 
 def test_default_data_dir_is_local_in_source_tree():
