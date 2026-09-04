@@ -143,6 +143,12 @@ That asset is arm64-only and does **not** run on Intel Macs. An Intel
 release job is not in this slice — on Intel, build from this repo with
 PyInstaller (`packaging/shelfkeep.spec`). Linux CI publishes **x86_64**.
 
+CI (`pytest`) runs on pull requests. Official GHCR images and release
+binaries publish only from this repository, via `main` / `v*` tags /
+manual dispatch, under the `release` GitHub Environment (see
+[SECURITY](SECURITY.md#official-artifacts)). Forks cannot publish as
+upstream.
+
 **Producing assets for `v1.0.0` or the next tag.** After this workflow is
 on `main`, do **not** retag from a packaging PR. Either:
 
