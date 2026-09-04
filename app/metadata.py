@@ -9,9 +9,13 @@ from typing import Any
 import httpx
 from pydantic import ValidationError
 
+from app import __version__
 from app.schemas import BookLookup
 
-USER_AGENT = "Shelfkeep/0.1 (https://github.com/Jstaud/shelfkeep; self-hosted catalog)"
+USER_AGENT = (
+    f"Shelfkeep/{__version__} "
+    "(https://github.com/Jstaud/shelfkeep; self-hosted catalog)"
+)
 BOOKS_URL = "https://openlibrary.org/api/books"
 SEARCH_URL = "https://openlibrary.org/search.json"
 ISBN_URL = "https://openlibrary.org/isbn/{isbn}.json"

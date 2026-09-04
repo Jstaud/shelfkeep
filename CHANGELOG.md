@@ -4,12 +4,13 @@ Shelfkeep versions follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0
 and [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 The `v1.0.0` git tag is created **after** this changelog lands on `main`.
-Do not tag from a docs PR.
+Do not tag from this PR.
 
-## [1.0.0] — 2026-09-03
+## [Unreleased]
 
-First public release. Self-hosted catalog for books and household stuff.
-No cloud account, no Kubernetes, no registry image required.
+First public release. Will be tagged `v1.0.0` after merge. Self-hosted catalog
+for books and household stuff. No cloud account, no Kubernetes, no registry
+image required.
 
 ### Added
 
@@ -36,6 +37,3 @@ No cloud account, no Kubernetes, no registry image required.
 - `.env.example` ships empty `SESSION_SECRET` and no real secrets
 - Uploaded files stay on local volumes; nothing is sent to a third-party
   store (covers are fetched from Open Library and cached locally)
-
-The `v1.0.0` release tag is cut from `main` after merge — not from this
-changelog commit.
