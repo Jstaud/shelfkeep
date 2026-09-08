@@ -32,4 +32,7 @@ frontend build step. Keep `.env.example` free of real secrets. Leave
 `SESSION_SECRET` blank so a unique key is generated.
 
 Open a pull request against `main` with a short description of the change.
-CI runs `pytest`. Keep it green.
+CI runs `pytest` on every PR (including from forks). Keep it green.
+Image and binary publishing is maintainer-only: it runs from this
+repository via `main` / `v*` tags / manual dispatch under the `release`
+environment, not from pull requests.

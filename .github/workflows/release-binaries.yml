@@ -10,11 +10,19 @@ on:
         required: false
         default: ""
 
+# Official binaries are published only from this repository (not forks).
+# The job that attaches assets to a GitHub Release uses the `release`
+# environment. In Settings → Environments → release, require reviewers
+# and limit deployment branches/tags to `main` and `v*`.
+# workflow_dispatch stays available for trusted manual publishes; attaching
+# assets still needs both the repo gate and environment approval.
+
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   build:
+    if: github.repository == 'Jstaud/shelfkeep'
     strategy:
       fail-fast: false
       matrix:
@@ -81,8 +89,11 @@ jobs:
 
   publish-release:
     needs: build
-    if: github.event_name == 'push' || inputs.attach_to_tag != ''
+    if: github.repository == 'Jstaud/shelfkeep' && (github.event_name == 'push' || inputs.attach_to_tag != '')
+    environment: release
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/download-artifact@v4
         with:

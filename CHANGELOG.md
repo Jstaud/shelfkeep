@@ -8,6 +8,12 @@ maintainer after merge.
 
 ## [Unreleased]
 
+### Security
+
+- GHCR and release-binary workflows run only in `Jstaud/shelfkeep` (not
+  forks) and require the `release` GitHub Environment for package push
+  and release-asset attach. PR CI is unchanged.
+
 ### Added
 
 - GitHub Actions publishes `ghcr.io/jstaud/shelfkeep` on `v*` tags (also

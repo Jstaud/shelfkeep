@@ -54,6 +54,18 @@ minimal reproduction. You should hear back within a few days.
 | 1.0.x | Yes |
 | < 1.0 | No |
 
+## Official artifacts
+
+CI (`pytest` in `.github/workflows/tests.yml`) runs on pull requests and on
+`main`. Anyone can open a PR and get that check.
+
+Image and binary publishing run **only from this repository**
+(`Jstaud/shelfkeep`), not from forks. Those workflows trigger on `main`,
+`v*` tags, or trusted `workflow_dispatch` — never on `pull_request`. Jobs
+that push `ghcr.io/jstaud/shelfkeep` or attach release assets use the
+GitHub Environment named `release`. In Settings → Environments → release,
+require reviewers and limit deployment branches/tags to `main` and `v*`.
+
 ## Deployment notes
 
 - Bind the HTTP server as Compose does (`0.0.0.0:8080` inside the container,
