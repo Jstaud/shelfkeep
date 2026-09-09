@@ -8,6 +8,14 @@ maintainer after merge.
 
 ## [Unreleased]
 
+### Fixed
+
+- Deleting a book replaces the `/books/{id}` history entry with the library
+  URL (`/`), matching item-delete.
+- Oversized photo and receipt uploads are rejected at the ASGI layer before
+  FastAPI spools the multipart body. Per-file limits stay 10 MB (images) and
+  15 MB (receipts).
+
 ### Security
 
 - GHCR and release-binary workflows run only in `Jstaud/shelfkeep` (not

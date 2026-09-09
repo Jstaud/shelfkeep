@@ -100,6 +100,17 @@ def test_workspace_js_replaces_item_url_after_delete():
     assert after_delete.index("renderAll()") < after_delete.index("history.replaceState")
 
 
+def test_workspace_js_replaces_book_url_after_delete():
+    script = Path("app/static/js/app.js").read_text(encoding="utf-8")
+    after_delete = script.split("Remove this volume from the shelf?")[1].split(
+        "copy.querySelector(\".inspect-actions\")"
+    )[0]
+    assert "history.replaceState" in after_delete
+    assert 'history.replaceState({}, "", "/")' in after_delete
+    assert "history.pushState" not in after_delete
+    assert after_delete.index("renderAll()") < after_delete.index("history.replaceState")
+
+
 def test_workspace_js_resets_room_form_after_success():
     script = Path("app/static/js/app.js").read_text(encoding="utf-8")
     after_room = script.split("state.rooms.push(room);")[1].split("} catch")[0]

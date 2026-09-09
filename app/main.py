@@ -20,7 +20,7 @@ from app.config import settings
 from app.db import Base, engine, get_db
 from app.models import Collection
 from app.routers import api, pages
-from app.uploads import ensure_dirs, safe_join
+from app.uploads import MaxBodySizeMiddleware, ensure_dirs, safe_join
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger("shelfkeep")
@@ -95,6 +95,8 @@ app.add_middleware(
     https_only=settings.session_https_only,
     max_age=60 * 60 * 24 * 30,
 )
+# Outermost user middleware: cap the body before multipart is spooled.
+app.add_middleware(MaxBodySizeMiddleware)
 
 app.state.templates = Jinja2Templates(directory=str(APP_DIR / "templates"))
 
