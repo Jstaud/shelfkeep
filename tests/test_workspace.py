@@ -130,6 +130,12 @@ def test_workspace_js_resets_item_form_after_success():
     assert success.index("event.target.reset()") < success.index('closeSheet("add-item")')
 
 
+def test_type_chips_stay_hidden_when_display_flex_is_set():
+    css = Path("app/static/css/app.css").read_text(encoding="utf-8")
+    assert ".type-chips[hidden]" in css
+    assert "display: none" in css.split(".type-chips[hidden]")[1].split("}")[0]
+
+
 def test_workspace_js_filters_library_by_media_type():
     script = Path("app/static/js/app.js").read_text(encoding="utf-8")
     assert "state.mediaFilter = \"all\"" in script or "state.mediaFilter = 'all'" in script
