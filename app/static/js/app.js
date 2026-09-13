@@ -287,7 +287,7 @@ function inspectBook(book) {
     state.books = state.books.filter((b) => b.id !== book.id);
     state.selectedBookId = null;
     renderAll();
-    history.pushState({}, "", "/");
+    history.replaceState({}, "", "/");
   });
   copy.querySelector(".inspect-actions").append(remove);
   pane.append(art, copy);

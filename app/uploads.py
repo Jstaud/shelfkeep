@@ -5,6 +5,9 @@ from pathlib import Path
 
 from fastapi import HTTPException, UploadFile, status
 from PIL import Image, UnidentifiedImageError
+from starlette.datastructures import Headers
+from starlette.responses import JSONResponse
+from starlette.types import ASGIApp, Receive, Scope, Send
 
 from app.config import settings
 
@@ -22,6 +25,55 @@ RECEIPT_TYPES = {
 MAX_IMAGE_BYTES = 10 * 1024 * 1024
 MAX_RECEIPT_BYTES = 15 * 1024 * 1024
 READ_CHUNK_BYTES = 64 * 1024
+# One item request may include a photo, a receipt, and small form fields.
+MAX_UPLOAD_BODY_BYTES = MAX_IMAGE_BYTES + MAX_RECEIPT_BYTES + READ_CHUNK_BYTES
+
+
+class _RequestBodyTooLarge(BaseException):
+    """Bypass Starlette ExceptionMiddleware so the ASGI cap can respond 400."""
+
+
+def _too_large_response() -> JSONResponse:
+    return JSONResponse({"detail": "File is too large"}, status_code=status.HTTP_400_BAD_REQUEST)
+
+
+class MaxBodySizeMiddleware:
+    """Reject oversized bodies before FastAPI/Starlette spool multipart parts."""
+
+    def __init__(self, app: ASGIApp) -> None:
+        self.app = app
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] != "http" or scope["method"] not in {"POST", "PUT", "PATCH"}:
+            await self.app(scope, receive, send)
+            return
+
+        max_size = MAX_UPLOAD_BODY_BYTES
+        content_length = Headers(scope=scope).get("content-length")
+        if content_length is not None:
+            try:
+                declared = int(content_length)
+            except ValueError:
+                declared = 0
+            if declared > max_size:
+                await _too_large_response()(scope, receive, send)
+                return
+
+        received = 0
+
+        async def limited_receive() -> dict:
+            nonlocal received
+            message = await receive()
+            if message["type"] == "http.request":
+                received += len(message.get("body", b""))
+                if received > max_size:
+                    raise _RequestBodyTooLarge()
+            return message
+
+        try:
+            await self.app(scope, limited_receive, send)
+        except _RequestBodyTooLarge:
+            await _too_large_response()(scope, receive, send)
 
 
 def ensure_dirs() -> None:
