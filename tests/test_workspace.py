@@ -23,6 +23,9 @@ def test_workspace_is_three_panes(auth_client):
     assert "pane pane-inspect" in page.text
     assert "Collections" in page.text
     assert "Rooms" in page.text
+    assert "Borrowers" in page.text
+    assert "Out now" in page.text
+    assert 'data-media-filter="game"' in page.text
     assert 'class="nav-value"' in page.text
     _assert_stand_alone_chrome(page.text)
 
@@ -125,6 +128,23 @@ def test_workspace_js_resets_item_form_after_success():
     success = item_submit.split("const item = await api")[1].split("} catch")[0]
     assert "event.target.reset()" in success
     assert success.index("event.target.reset()") < success.index('closeSheet("add-item")')
+
+
+def test_workspace_js_filters_library_by_media_type():
+    script = Path("app/static/js/app.js").read_text(encoding="utf-8")
+    assert "state.mediaFilter = \"all\"" in script or "state.mediaFilter = 'all'" in script
+    render = script.split("function renderBooks(")[1].split("function ")[0]
+    assert "state.mediaFilter" in render
+    assert "book.media_type" in render
+
+
+def test_workspace_js_can_lend_and_return():
+    script = Path("app/static/js/app.js").read_text(encoding="utf-8")
+    assert "function appendLoanActions(" in script
+    assert "function markLoanReturned(" in script
+    assert "Lend this" in script
+    assert "Mark returned" in script
+    assert 'api(`/api/loans/${loanId}/return`' in script
 
 
 def test_workspace_js_stops_camera_if_scanner_setup_fails():

@@ -8,6 +8,16 @@ maintainer after merge.
 
 ## [Unreleased]
 
+### Added
+
+- Library shelf types beyond books: movie, disc, and game, with a type
+  filter and manual add/edit. Books still look up through Open Library;
+  other types are entered by hand. Optional cover upload on the card.
+- Borrowers and loans: a left-nav people list, lend a catalog item or
+  household item, see who has what, and mark it returned. Local only —
+  no email, no accounts beyond the single operator login. Existing
+  SQLite/Postgres libraries pick up `books.media_type` on boot.
+
 ### Fixed
 
 - Deleting a book replaces the `/books/{id}` history entry with the library

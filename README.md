@@ -30,8 +30,9 @@ The interface is inspired by the *feeling* of browsing real shelves — not a cl
 
 - Three-pane workspace: collections and rooms on the left, a shelf of object-like covers in the center, details on the right
 - Wooden-shelf library with large cover art (sheen, spine, and shadow — original, not a clone)
-- Add books by ISBN, title lookup, or manual entry
-- Public metadata from [Open Library](https://openlibrary.org) (covers and bibliographic data), with a graceful fallback if lookup fails
+- Add books by ISBN, title lookup, or manual entry; movies, discs, and games by hand on the same shelf
+- Public metadata from [Open Library](https://openlibrary.org) for books only (covers and bibliographic data), with a graceful fallback if lookup fails
+- Borrowers and loans: lend a catalog item or household item, see who has what, mark returned
 - Optional on-device barcode scan in browsers that implement `BarcodeDetector` (Chromium)
 - Rooms and household items with photo upload, serial, purchase date, replacement value, and receipts
 - Single-user local login (username and password from environment)

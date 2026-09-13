@@ -17,7 +17,7 @@ from starlette.middleware.sessions import SessionMiddleware
 from app import __version__
 from app.auth import AuthGateMiddleware
 from app.config import settings
-from app.db import Base, engine, get_db
+from app.db import engine, ensure_schema, get_db
 from app.models import Collection
 from app.routers import api, pages
 from app.uploads import MaxBodySizeMiddleware, ensure_dirs, safe_join
@@ -42,7 +42,7 @@ async def lifespan(_: FastAPI):
     settings.data_dir.mkdir(parents=True, exist_ok=True)
     ensure_dirs()
     _wait_for_database()
-    Base.metadata.create_all(bind=engine)
+    ensure_schema()
     _seed_library()
     if settings.using_default_secrets:
         log.warning(
