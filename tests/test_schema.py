@@ -1,6 +1,6 @@
 from sqlalchemy import inspect, text
 
-from app.db import _add_column_if_missing, engine, ensure_schema
+from app.db import ACTIVE_LOAN_INDEX, _add_column_if_missing, engine, ensure_schema
 
 
 def test_ensure_schema_is_idempotent_and_adds_columns():
@@ -17,3 +17,5 @@ def test_ensure_schema_is_idempotent_and_adds_columns():
     tables = set(inspect(engine).get_table_names())
     assert "borrowers" in tables
     assert "loans" in tables
+    loan_indexes = {idx["name"] for idx in inspect(engine).get_indexes("loans")}
+    assert ACTIVE_LOAN_INDEX in loan_indexes

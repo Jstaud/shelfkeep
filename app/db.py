@@ -35,6 +35,7 @@ def ensure_schema() -> None:
 
     Base.metadata.create_all(bind=engine)
     _add_column_if_missing("books", "media_type", "VARCHAR(20) DEFAULT 'book'")
+    _ensure_active_loan_index()
 
 
 def _add_column_if_missing(table: str, column: str, ddl: str) -> None:
@@ -46,3 +47,23 @@ def _add_column_if_missing(table: str, column: str, ddl: str) -> None:
         return
     with engine.begin() as conn:
         conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {column} {ddl}"))
+
+
+ACTIVE_LOAN_INDEX = "uq_loans_active_item"
+
+
+def _ensure_active_loan_index() -> None:
+    """One active loan per item. create_all will not add this to an existing table."""
+    inspector = inspect(engine)
+    if "loans" not in inspector.get_table_names():
+        return
+    existing = {idx["name"] for idx in inspector.get_indexes("loans")}
+    if ACTIVE_LOAN_INDEX in existing:
+        return
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                f"CREATE UNIQUE INDEX {ACTIVE_LOAN_INDEX} "
+                "ON loans (item_kind, item_id) WHERE returned_at IS NULL"
+            )
+        )

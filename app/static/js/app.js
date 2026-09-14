@@ -176,6 +176,7 @@ function setStageChrome() {
     add.textContent = state.mediaFilter === "all" ? "Add to the shelf" : meta.add;
     add.dataset.open = "add-book";
     add.onclick = () => {
+      resetBookForm();
       if (state.mediaFilter !== "all" && $("#catalog-type")) {
         $("#catalog-type").value = state.mediaFilter;
         syncMediaForm();
@@ -436,6 +437,7 @@ function inspectBook(book) {
     if (!confirm("Remove this volume from the shelf?")) return;
     await api(`/api/books/${book.id}`, { method: "DELETE" });
     state.books = state.books.filter((b) => b.id !== book.id);
+    dropLoansFor("book", book.id);
     state.selectedBookId = null;
     renderAll();
     history.replaceState({}, "", "/");
@@ -509,6 +511,7 @@ function inspectItem(item) {
         entry.items = (entry.items || []).filter((row) => row.id !== item.id);
       });
     }
+    dropLoansFor("item", item.id);
     state.selectedItemId = null;
     renderAll();
     const roomId = item.room_id || room?.id || state.selectedRoomId;
@@ -774,6 +777,15 @@ const BOOK_FORM_KEYS = [
   "page_count",
 ];
 
+function dropLoansFor(kind, id) {
+  state.borrowers.forEach((person) => {
+    person.loans = (person.loans || []).filter(
+      (loan) => !(loan.item_kind === kind && loan.item_id === id)
+    );
+    person.active_loan_count = person.loans.filter((loan) => !loan.returned_at).length;
+  });
+}
+
 function resetBookForm() {
   const form = $("#manual-book");
   if (!form) return;
@@ -859,6 +871,19 @@ function renderLookup(results) {
 const lookupBtn = $("#lookup-btn");
 let lookupGeneration = 0;
 
+$("#add-book")?.addEventListener("close", () => {
+  lookupGeneration += 1;
+  resetBookForm();
+  renderLookup([]);
+  const lookupQ = $("#lookup-q");
+  if (lookupQ) lookupQ.value = "";
+  const lookupStatus = $("#lookup-status");
+  if (lookupStatus) {
+    lookupStatus.hidden = true;
+    lookupStatus.textContent = "";
+  }
+});
+
 function applyLookupQuery(q) {
   const digits = q.replace(/[^0-9Xx]/g, "");
   if (digits.length === 10 || digits.length === 13) {
@@ -922,7 +947,14 @@ $("#manual-book")?.addEventListener("submit", async (event) => {
     if (cover?.files?.[0]) {
       const data = new FormData();
       data.set("cover", cover.files[0]);
-      saved = await api(`/api/books/${book.id}/cover`, { method: "POST", body: data });
+      try {
+        saved = await api(`/api/books/${book.id}/cover`, { method: "POST", body: data });
+      } catch (coverErr) {
+        if (!editId) {
+          await api(`/api/books/${book.id}`, { method: "DELETE" }).catch(() => {});
+        }
+        throw coverErr;
+      }
     }
     if (editId) {
       const index = state.books.findIndex((entry) => entry.id === saved.id);

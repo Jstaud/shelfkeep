@@ -5,6 +5,7 @@ from decimal import Decimal, InvalidOperation
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
 from app.db import get_db
@@ -411,7 +412,11 @@ def create_loan(payload: LoanCreate, db: Session = Depends(get_db)):
         notes=_blank(payload.notes),
     )
     db.add(loan)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=409, detail="This is already on loan") from None
     db.refresh(loan)
     loan.borrower = borrower
     return loan_out(loan, title)

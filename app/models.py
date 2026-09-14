@@ -1,7 +1,7 @@
 from datetime import date, datetime
 from decimal import Decimal
 
-from sqlalchemy import Date, DateTime, ForeignKey, Integer, Numeric, String, Text, func
+from sqlalchemy import Date, DateTime, ForeignKey, Index, Integer, Numeric, String, Text, func, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db import Base
@@ -124,3 +124,14 @@ class Loan(Base):
     )
 
     borrower: Mapped[Borrower] = relationship(back_populates="loans")
+
+    __table_args__ = (
+        Index(
+            "uq_loans_active_item",
+            "item_kind",
+            "item_id",
+            unique=True,
+            sqlite_where=text("returned_at IS NULL"),
+            postgresql_where=text("returned_at IS NULL"),
+        ),
+    )

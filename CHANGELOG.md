@@ -20,6 +20,14 @@ maintainer after merge.
 
 ### Fixed
 
+- Dismissing the shelf-card sheet (Esc or ×) clears edit state so the next
+  add creates a new card instead of PUTting the last edited one.
+- A failed cover upload after a new add deletes that card so retry does
+  not leave a duplicate.
+- Active loans are unique per catalog item or household item (partial
+  unique index on SQLite and Postgres).
+- Deleting a loaned volume or item drops its loans from the borrowers
+  list without a reload.
 - Deleting a book replaces the `/books/{id}` history entry with the library
   URL (`/`), matching item-delete.
 - Oversized photo and receipt uploads are rejected at the ASGI layer before

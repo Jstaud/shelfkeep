@@ -1,5 +1,10 @@
 from datetime import date, timedelta
 
+from sqlalchemy.exc import IntegrityError
+
+from app.db import SessionLocal
+from app.models import Loan
+
 
 def _book(auth_client, title="Loaned Atlas"):
     response = auth_client.post("/api/books", json={"title": title, "media_type": "book"})
@@ -89,6 +94,12 @@ def test_loan_book_and_mark_returned(auth_client):
     again = auth_client.post(f"/api/loans/{body['id']}/return", json={})
     assert again.status_code == 400
 
+    relend = auth_client.post(
+        "/api/loans",
+        json={"borrower_id": person["id"], "item_kind": "book", "item_id": book["id"]},
+    )
+    assert relend.status_code == 201, relend.text
+
 
 def test_loan_household_item(auth_client):
     item = _item(auth_client, "Stand mixer")
@@ -147,6 +158,32 @@ def test_delete_book_clears_its_loans(auth_client):
     leftover = auth_client.get("/api/loans")
     assert leftover.status_code == 200
     assert all(row["id"] != loan.json()["id"] for row in leftover.json())
+
+
+def test_active_loan_unique_index_blocks_direct_insert(auth_client):
+    book = _book(auth_client, "Double Out")
+    person = _borrower(auth_client, name="Quinn")
+    loan = auth_client.post(
+        "/api/loans",
+        json={"borrower_id": person["id"], "item_kind": "book", "item_id": book["id"]},
+    )
+    assert loan.status_code == 201
+    db = SessionLocal()
+    try:
+        db.add(
+            Loan(
+                borrower_id=person["id"],
+                item_kind="book",
+                item_id=book["id"],
+                loaned_at=date.today(),
+            )
+        )
+        db.commit()
+        raise AssertionError("second active loan should violate uq_loans_active_item")
+    except IntegrityError:
+        db.rollback()
+    finally:
+        db.close()
 
 
 def test_whitespace_only_borrower_name_is_rejected(auth_client):
