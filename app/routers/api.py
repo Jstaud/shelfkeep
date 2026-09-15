@@ -5,14 +5,36 @@ from decimal import Decimal, InvalidOperation
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
 from app.db import get_db
 from app.metadata import lookup_isbn, looks_like_isbn, normalize_isbn, search_title
-from app.models import Book, Collection, HouseholdItem, Room
+from app.models import Book, Borrower, Collection, HouseholdItem, Loan, Room
 from app.routers.pages import default_collection
-from app.schemas import BookCreate, BookOut, ItemOut, RoomCreate, RoomOut
-from app.serializers import book_out, item_out, room_out
+from app.schemas import (
+    MEDIA_TYPES,
+    BookCreate,
+    BookOut,
+    BorrowerCreate,
+    BorrowerOut,
+    BorrowerUpdate,
+    ItemOut,
+    LoanCreate,
+    LoanOut,
+    LoanReturn,
+    RoomCreate,
+    RoomOut,
+)
+from app.serializers import (
+    active_loans_map,
+    book_out,
+    borrower_out,
+    item_out,
+    loan_out,
+    loan_titles,
+    room_out,
+)
 from app.uploads import delete_stored_file, save_bytes, save_upload
 
 router = APIRouter(prefix="/api")
@@ -43,9 +65,18 @@ async def lookup(q: str = "", isbn: str = "") -> dict:
 
 
 @router.get("/books", response_model=list[BookOut])
-def list_books(db: Session = Depends(get_db)):
-    books = db.scalars(select(Book).order_by(Book.created_at.desc())).all()
-    return [book_out(b) for b in books]
+def list_books(media_type: str | None = None, db: Session = Depends(get_db)):
+    if media_type:
+        normalized = media_type.strip().lower()
+        if normalized not in MEDIA_TYPES:
+            raise HTTPException(status_code=400, detail="media_type must be book, movie, disc, or game")
+        media_type = normalized
+    query = select(Book).order_by(Book.created_at.desc())
+    if media_type:
+        query = query.where(Book.media_type == media_type)
+    books = db.scalars(query).all()
+    loans = active_loans_map(db)
+    return [book_out(book, loans.get(("book", book.id))) for book in books]
 
 
 @router.post("/books", response_model=BookOut, status_code=201)
@@ -66,6 +97,7 @@ async def create_book(payload: BookCreate, db: Session = Depends(get_db)):
             cover_path = await _cache_cover(cover_url)
         book = Book(
             collection_id=collection.id,
+            media_type=payload.media_type,
             title=payload.title,
             subtitle=payload.subtitle,
             authors=payload.authors,
@@ -96,7 +128,62 @@ def get_book(book_id: int, db: Session = Depends(get_db)):
     book = db.get(Book, book_id)
     if not book:
         raise HTTPException(status_code=404, detail="Book not found")
-    return book_out(book)
+    return book_out(book, _active_loan(db, "book", book.id))
+
+
+@router.put("/books/{book_id}", response_model=BookOut)
+async def update_book(book_id: int, payload: BookCreate, db: Session = Depends(get_db)):
+    book = db.get(Book, book_id)
+    if not book:
+        raise HTTPException(status_code=404, detail="Book not found")
+    isbn = normalize_isbn(payload.isbn) if payload.isbn else None
+    page_count = _bound_page_count(payload.page_count)
+    book.media_type = payload.media_type
+    book.title = payload.title
+    book.subtitle = payload.subtitle
+    book.authors = payload.authors
+    book.isbn = isbn
+    book.publisher = payload.publisher
+    book.published_year = payload.published_year
+    book.page_count = page_count
+    book.description = payload.description
+    book.notes = payload.notes
+    if payload.cover_url:
+        book.cover_url = payload.cover_url
+    if payload.openlibrary_url:
+        book.openlibrary_url = payload.openlibrary_url
+    db.commit()
+    db.refresh(book)
+    return book_out(book, _active_loan(db, "book", book.id))
+
+
+@router.post("/books/{book_id}/cover", response_model=BookOut)
+async def upload_book_cover(
+    book_id: int,
+    cover: UploadFile = File(...),
+    db: Session = Depends(get_db),
+):
+    book = db.get(Book, book_id)
+    if not book:
+        raise HTTPException(status_code=404, detail="Book not found")
+    if not cover.filename:
+        raise HTTPException(status_code=400, detail="Cover file is required")
+    previous = book.cover_path
+    cover_path = None
+    persisted = False
+    try:
+        cover_path = await save_upload(cover, "covers")
+        book.cover_path = cover_path
+        db.commit()
+        persisted = True
+        db.refresh(book)
+    except Exception:
+        if not persisted:
+            db.rollback()
+            delete_stored_file(cover_path)
+        raise
+    delete_stored_file(previous)
+    return book_out(book, _active_loan(db, "book", book.id))
 
 
 @router.delete("/books/{book_id}", status_code=204)
@@ -105,6 +192,7 @@ def delete_book(book_id: int, db: Session = Depends(get_db)):
     if not book:
         raise HTTPException(status_code=404, detail="Book not found")
     cover_path = book.cover_path
+    _delete_loans_for(db, "book", book.id)
     db.delete(book)
     db.commit()
     delete_stored_file(cover_path)
@@ -142,6 +230,8 @@ def delete_room(room_id: int, db: Session = Depends(get_db)):
     if not room:
         raise HTTPException(status_code=404, detail="Room not found")
     paths = [item.photo_path for item in room.items] + [item.receipt_path for item in room.items]
+    for item in room.items:
+        _delete_loans_for(db, "item", item.id)
     db.delete(room)
     db.commit()
     for path in paths:
@@ -205,7 +295,7 @@ async def create_item(
             delete_stored_file(receipt_path)
         raise
     item.room = room
-    return item_out(item)
+    return item_out(item, _active_loan(db, "item", item.id))
 
 
 @router.get("/items/{item_id}", response_model=ItemOut)
@@ -217,7 +307,7 @@ def get_item(item_id: int, db: Session = Depends(get_db)):
     )
     if not item:
         raise HTTPException(status_code=404, detail="Item not found")
-    return item_out(item)
+    return item_out(item, _active_loan(db, "item", item.id))
 
 
 @router.delete("/items/{item_id}", status_code=204)
@@ -227,11 +317,169 @@ def delete_item(item_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Item not found")
     photo_path = item.photo_path
     receipt_path = item.receipt_path
+    _delete_loans_for(db, "item", item.id)
     db.delete(item)
     db.commit()
     delete_stored_file(photo_path)
     delete_stored_file(receipt_path)
     return None
+
+
+@router.get("/borrowers", response_model=list[BorrowerOut])
+def list_borrowers(db: Session = Depends(get_db)):
+    borrowers = db.scalars(
+        select(Borrower).options(selectinload(Borrower.loans).selectinload(Loan.borrower)).order_by(
+            Borrower.name
+        )
+    ).all()
+    titles = loan_titles(db, [loan for borrower in borrowers for loan in borrower.loans])
+    return [borrower_out(borrower, list(borrower.loans), titles) for borrower in borrowers]
+
+
+@router.post("/borrowers", response_model=BorrowerOut, status_code=201)
+def create_borrower(payload: BorrowerCreate, db: Session = Depends(get_db)):
+    borrower = Borrower(name=payload.name, contact=_blank(payload.contact), notes=_blank(payload.notes))
+    db.add(borrower)
+    db.commit()
+    db.refresh(borrower)
+    return borrower_out(borrower, [])
+
+
+@router.get("/borrowers/{borrower_id}", response_model=BorrowerOut)
+def get_borrower(borrower_id: int, db: Session = Depends(get_db)):
+    borrower = _get_borrower(db, borrower_id)
+    titles = loan_titles(db, list(borrower.loans))
+    return borrower_out(borrower, list(borrower.loans), titles)
+
+
+@router.patch("/borrowers/{borrower_id}", response_model=BorrowerOut)
+def update_borrower(borrower_id: int, payload: BorrowerUpdate, db: Session = Depends(get_db)):
+    borrower = _get_borrower(db, borrower_id)
+    if payload.name is not None:
+        borrower.name = payload.name
+    if payload.contact is not None:
+        borrower.contact = _blank(payload.contact)
+    if payload.notes is not None:
+        borrower.notes = _blank(payload.notes)
+    db.commit()
+    db.refresh(borrower)
+    titles = loan_titles(db, list(borrower.loans))
+    return borrower_out(borrower, list(borrower.loans), titles)
+
+
+@router.delete("/borrowers/{borrower_id}", status_code=204)
+def delete_borrower(borrower_id: int, db: Session = Depends(get_db)):
+    borrower = _get_borrower(db, borrower_id)
+    if any(loan.returned_at is None for loan in borrower.loans):
+        raise HTTPException(
+            status_code=409,
+            detail="Return outstanding loans before removing this borrower",
+        )
+    db.delete(borrower)
+    db.commit()
+    return None
+
+
+@router.get("/loans", response_model=list[LoanOut])
+def list_loans(active: bool | None = None, db: Session = Depends(get_db)):
+    query = select(Loan).options(selectinload(Loan.borrower)).order_by(Loan.loaned_at.desc(), Loan.id.desc())
+    if active is True:
+        query = query.where(Loan.returned_at.is_(None))
+    elif active is False:
+        query = query.where(Loan.returned_at.is_not(None))
+    loans = db.scalars(query).all()
+    titles = loan_titles(db, list(loans))
+    return [loan_out(loan, titles.get((loan.item_kind, loan.item_id))) for loan in loans]
+
+
+@router.post("/loans", response_model=LoanOut, status_code=201)
+def create_loan(payload: LoanCreate, db: Session = Depends(get_db)):
+    borrower = db.get(Borrower, payload.borrower_id)
+    if not borrower:
+        raise HTTPException(status_code=404, detail="Borrower not found")
+    title = _loan_item_title(db, payload.item_kind, payload.item_id)
+    if _active_loan(db, payload.item_kind, payload.item_id):
+        raise HTTPException(status_code=409, detail="This is already on loan")
+    loaned_at = payload.loaned_at or date.today()
+    if payload.due_date and payload.due_date < loaned_at:
+        raise HTTPException(status_code=400, detail="Due date cannot be before the loan date")
+    loan = Loan(
+        borrower_id=borrower.id,
+        item_kind=payload.item_kind,
+        item_id=payload.item_id,
+        loaned_at=loaned_at,
+        due_date=payload.due_date,
+        notes=_blank(payload.notes),
+    )
+    db.add(loan)
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=409, detail="This is already on loan") from None
+    db.refresh(loan)
+    loan.borrower = borrower
+    return loan_out(loan, title)
+
+
+@router.post("/loans/{loan_id}/return", response_model=LoanOut)
+def return_loan(loan_id: int, payload: LoanReturn | None = None, db: Session = Depends(get_db)):
+    loan = db.scalar(select(Loan).options(selectinload(Loan.borrower)).where(Loan.id == loan_id))
+    if not loan:
+        raise HTTPException(status_code=404, detail="Loan not found")
+    if loan.returned_at is not None:
+        raise HTTPException(status_code=400, detail="This loan is already returned")
+    returned_at = (payload.returned_at if payload else None) or date.today()
+    if returned_at < loan.loaned_at:
+        raise HTTPException(status_code=400, detail="Returned date cannot be before the loan date")
+    loan.returned_at = returned_at
+    db.commit()
+    db.refresh(loan)
+    titles = loan_titles(db, [loan])
+    return loan_out(loan, titles.get((loan.item_kind, loan.item_id)))
+
+
+def _get_borrower(db: Session, borrower_id: int) -> Borrower:
+    borrower = db.scalar(
+        select(Borrower).options(selectinload(Borrower.loans).selectinload(Loan.borrower)).where(
+            Borrower.id == borrower_id
+        )
+    )
+    if not borrower:
+        raise HTTPException(status_code=404, detail="Borrower not found")
+    return borrower
+
+
+def _active_loan(db: Session, item_kind: str, item_id: int) -> Loan | None:
+    return db.scalar(
+        select(Loan)
+        .options(selectinload(Loan.borrower))
+        .where(
+            Loan.item_kind == item_kind,
+            Loan.item_id == item_id,
+            Loan.returned_at.is_(None),
+        )
+    )
+
+
+def _loan_item_title(db: Session, item_kind: str, item_id: int) -> str:
+    if item_kind == "book":
+        book = db.get(Book, item_id)
+        if not book:
+            raise HTTPException(status_code=404, detail="Book not found")
+        return book.title
+    item = db.get(HouseholdItem, item_id)
+    if not item:
+        raise HTTPException(status_code=404, detail="Item not found")
+    return item.name
+
+
+def _delete_loans_for(db: Session, item_kind: str, item_id: int) -> None:
+    loans = db.scalars(
+        select(Loan).where(Loan.item_kind == item_kind, Loan.item_id == item_id)
+    ).all()
+    for loan in loans:
+        db.delete(loan)
 
 
 def _blank(value: str | None) -> str | None:

@@ -1,14 +1,16 @@
 {% extends "base.html" %}
-{% block title %}{% if view == 'library' %}Library{% else %}Home{% endif %} · Shelfkeep{% endblock %}
+{% block title %}{% if view == 'library' %}Library{% elif view == 'borrowers' %}Borrowers{% else %}Home{% endif %} · Shelfkeep{% endblock %}
 {% block body_class %}is-workspace{% endblock %}
 {% block content %}
   <script type="application/json" id="workspace-data">{{ {
     "view": view,
     "books": books,
     "rooms": rooms,
+    "borrowers": borrowers,
     "selectedBookId": selected_book_id,
     "selectedRoomId": selected_room_id,
-    "selectedItemId": selected_item_id
+    "selectedItemId": selected_item_id,
+    "selectedBorrowerId": selected_borrower_id
   } | tojson }}</script>
 
   <div class="panes" data-view="{{ view }}">
@@ -20,6 +22,31 @@
           <span>Library</span>
           <em>{{ book_count }}</em>
         </a>
+      </section>
+      <section>
+        <h2>Borrowers</h2>
+        <a class="nav-row {% if view == 'borrowers' and not selected_borrower_id %}is-active{% endif %}"
+           href="/borrowers"
+           data-open-borrowers>
+          <span class="nav-ico nav-ico-people" aria-hidden="true"></span>
+          <span>Out now</span>
+          <em>{{ active_loan_count }}</em>
+        </a>
+        <div id="borrower-nav">
+          {% for borrower in borrowers %}
+            <a class="nav-row {% if selected_borrower_id == borrower.id %}is-active{% endif %}"
+               href="/borrowers/{{ borrower.id }}"
+               data-open-borrower="{{ borrower.id }}">
+              <span class="nav-ico nav-ico-person" aria-hidden="true"></span>
+              <span>{{ borrower.name }}</span>
+              <em>{{ borrower.active_loan_count }}</em>
+            </a>
+          {% endfor %}
+        </div>
+        {% if not borrowers %}
+          <p class="nav-empty" id="borrower-empty">No borrowers yet.</p>
+        {% endif %}
+        <button type="button" class="ghost-btn nav-add" data-open="add-borrower">Add a borrower</button>
       </section>
       <section>
         <h2>Rooms</h2>
@@ -58,6 +85,13 @@
           <button type="button" class="primary-btn" id="stage-add">Add a book</button>
         </div>
       </header>
+      <div class="type-chips" id="type-chips" {% if view != 'library' %}hidden{% endif %}>
+        <button type="button" class="chip is-active" data-media-filter="all">All</button>
+        <button type="button" class="chip" data-media-filter="book">Books</button>
+        <button type="button" class="chip" data-media-filter="movie">Movies</button>
+        <button type="button" class="chip" data-media-filter="disc">Discs</button>
+        <button type="button" class="chip" data-media-filter="game">Games</button>
+      </div>
       <div class="stage-well" id="stage-well"></div>
     </section>
 
@@ -68,39 +102,84 @@
 
   <dialog class="sheet" id="add-book">
     <form method="dialog" class="sheet-head">
-      <h2>Add a book</h2>
+      <h2 id="catalog-sheet-title">Add to the shelf</h2>
       <button type="submit" class="icon-btn" aria-label="Close">×</button>
     </form>
     <div class="sheet-body">
-      <p class="hint">Look up a title or ISBN through Open Library. If nothing comes back, keep the details and place it by hand.</p>
-      <div class="lookup-row">
-        <label class="grow">
-          Title or ISBN
-          <input type="text" id="lookup-q" placeholder="9780547928227 or The Hobbit" autocomplete="off">
-        </label>
-        <button type="button" class="primary-btn" id="lookup-btn">Look up</button>
-        <button type="button" class="ghost-btn" id="scan-btn" hidden>Scan</button>
-      </div>
-      <p class="status" id="lookup-status" hidden></p>
-      <div id="lookup-results" class="lookup-results"></div>
       <form id="manual-book" class="stack compact">
+        <label>Type
+          <select name="media_type" id="catalog-type">
+            <option value="book">Book</option>
+            <option value="movie">Movie</option>
+            <option value="disc">Disc</option>
+            <option value="game">Game</option>
+          </select>
+        </label>
+        <div id="lookup-block">
+          <p class="hint">Look up a title or ISBN through Open Library. If nothing comes back, keep the details and place it by hand.</p>
+          <div class="lookup-row">
+            <label class="grow">
+              Title or ISBN
+              <input type="text" id="lookup-q" placeholder="9780547928227 or The Hobbit" autocomplete="off">
+            </label>
+            <button type="button" class="primary-btn" id="lookup-btn">Look up</button>
+            <button type="button" class="ghost-btn" id="scan-btn" hidden>Scan</button>
+          </div>
+          <p class="status" id="lookup-status" hidden></p>
+          <div id="lookup-results" class="lookup-results"></div>
+        </div>
+        <p class="hint" id="manual-type-hint" hidden>No external lookup for this type. Enter the title and whatever else you want to remember.</p>
         <h3>Card</h3>
         <label>Title <input name="title" required></label>
-        <label>Authors <input name="authors"></label>
-        <label>ISBN / EAN <input name="isbn"></label>
+        <label id="creator-label">Authors <input name="authors"></label>
+        <label id="isbn-label">ISBN / EAN <input name="isbn"></label>
         <div class="split">
-          <label>Publisher <input name="publisher"></label>
+          <label id="publisher-label">Publisher <input name="publisher"></label>
           <label>Year <input name="published_year"></label>
         </div>
         <label>Notes <textarea name="notes" rows="2"></textarea></label>
+        <label>Cover <input type="file" id="book-cover" accept="image/jpeg,image/png,image/webp"></label>
         <input type="hidden" name="subtitle">
         <input type="hidden" name="cover_url">
         <input type="hidden" name="openlibrary_url">
         <input type="hidden" name="description">
         <input type="hidden" name="page_count">
-        <button type="submit" class="primary-btn">Place on the shelf</button>
+        <button type="submit" class="primary-btn" id="catalog-save">Place on the shelf</button>
       </form>
     </div>
+  </dialog>
+
+  <dialog class="sheet" id="add-borrower">
+    <form method="dialog" class="sheet-head">
+      <h2>Add a borrower</h2>
+      <button type="submit" class="icon-btn" aria-label="Close">×</button>
+    </form>
+    <form id="borrower-form" class="sheet-body stack">
+      <label>Name <input name="name" required placeholder="Sam"></label>
+      <label>Contact <input name="contact" placeholder="Optional phone or note"></label>
+      <label>Notes <textarea name="notes" rows="2"></textarea></label>
+      <button type="submit" class="primary-btn">Save borrower</button>
+    </form>
+  </dialog>
+
+  <dialog class="sheet" id="loan-out">
+    <form method="dialog" class="sheet-head">
+      <h2>Lend this</h2>
+      <button type="submit" class="icon-btn" aria-label="Close">×</button>
+    </form>
+    <form id="loan-form" class="sheet-body stack">
+      <input type="hidden" name="item_kind">
+      <input type="hidden" name="item_id">
+      <label>Borrower
+        <select name="borrower_id" id="loan-borrower" required></select>
+      </label>
+      <div class="split">
+        <label>Loaned <input type="date" name="loaned_at" required></label>
+        <label>Due <input type="date" name="due_date"></label>
+      </div>
+      <label>Notes <input name="notes"></label>
+      <button type="submit" class="primary-btn">Record loan</button>
+    </form>
   </dialog>
 
   <dialog class="sheet" id="add-room">

@@ -8,8 +8,26 @@ maintainer after merge.
 
 ## [Unreleased]
 
+### Added
+
+- Library shelf types beyond books: movie, disc, and game, with a type
+  filter and manual add/edit. Books still look up through Open Library;
+  other types are entered by hand. Optional cover upload on the card.
+- Borrowers and loans: a left-nav people list, lend a catalog item or
+  household item, see who has what, and mark it returned. Local only —
+  no email, no accounts beyond the single operator login. Existing
+  SQLite/Postgres libraries pick up `books.media_type` on boot.
+
 ### Fixed
 
+- Dismissing the shelf-card sheet (Esc or ×) clears edit state so the next
+  add creates a new card instead of PUTting the last edited one.
+- A failed cover upload after a new add deletes that card so retry does
+  not leave a duplicate.
+- Active loans are unique per catalog item or household item (partial
+  unique index on SQLite and Postgres).
+- Deleting a loaned volume or item drops its loans from the borrowers
+  list without a reload.
 - Deleting a book replaces the `/books/{id}` history entry with the library
   URL (`/`), matching item-delete.
 - Oversized photo and receipt uploads are rejected at the ASGI layer before

@@ -9,8 +9,15 @@ from starlette.status import HTTP_303_SEE_OTHER
 from app.auth import credentials_ok, is_logged_in
 from app.config import settings
 from app.db import get_db
-from app.models import Book, Collection, HouseholdItem, Room
-from app.serializers import book_out, item_out, room_out
+from app.models import Book, Borrower, Collection, HouseholdItem, Loan, Room
+from app.serializers import (
+    active_loans_map,
+    book_out,
+    borrower_out,
+    item_out,
+    loan_titles,
+    room_out,
+)
 
 router = APIRouter()
 
@@ -24,19 +31,39 @@ def workspace_payload(db: Session) -> dict:
     rooms = db.scalars(
         select(Room).options(selectinload(Room.items)).order_by(Room.sort_order, Room.name)
     ).all()
+    borrowers = db.scalars(
+        select(Borrower)
+        .options(selectinload(Borrower.loans).selectinload(Loan.borrower))
+        .order_by(Borrower.name)
+    ).all()
+    loans = active_loans_map(db)
+    titles = loan_titles(db, [loan for borrower in borrowers for loan in borrower.loans])
     room_payload = []
     total_items = 0
     total_value = Decimal("0")
     for room in rooms:
         data = room_out(room).model_dump(mode="json")
-        data["items"] = [item_out(item).model_dump(mode="json") for item in room.items]
+        data["items"] = [
+            item_out(item, loans.get(("item", item.id))).model_dump(mode="json")
+            for item in room.items
+        ]
         room_payload.append(data)
         total_items += data["item_count"]
         total_value += Decimal(str(data["replacement_total"]))
+    borrower_payload = [
+        borrower_out(borrower, list(borrower.loans), titles).model_dump(mode="json")
+        for borrower in borrowers
+    ]
     return {
-        "books": [book_out(book).model_dump(mode="json") for book in books],
+        "books": [
+            book_out(book, loans.get(("book", book.id))).model_dump(mode="json")
+            for book in books
+        ],
         "rooms": room_payload,
+        "borrowers": borrower_payload,
         "book_count": len(books),
+        "borrower_count": len(borrower_payload),
+        "active_loan_count": sum(entry["active_loan_count"] for entry in borrower_payload),
         "total_items": total_items,
         "total_value": f"{total_value:,.2f}",
     }
@@ -50,6 +77,7 @@ def render_workspace(
     selected_book_id: int | None = None,
     selected_room_id: int | None = None,
     selected_item_id: int | None = None,
+    selected_borrower_id: int | None = None,
 ):
     context = workspace_payload(db)
     context.update(
@@ -58,6 +86,7 @@ def render_workspace(
             "selected_book_id": selected_book_id,
             "selected_room_id": selected_room_id,
             "selected_item_id": selected_item_id,
+            "selected_borrower_id": selected_borrower_id,
         }
     )
     return templates(request).TemplateResponse(request, "workspace.html", context)
@@ -141,6 +170,19 @@ async def item_detail(item_id: int, request: Request, db: Session = Depends(get_
         selected_room_id=item.room_id,
         selected_item_id=item_id,
     )
+
+
+@router.get("/borrowers", response_class=HTMLResponse)
+async def borrowers_page(request: Request, db: Session = Depends(get_db)):
+    return render_workspace(request, db, view="borrowers")
+
+
+@router.get("/borrowers/{borrower_id}", response_class=HTMLResponse)
+async def borrower_detail(borrower_id: int, request: Request, db: Session = Depends(get_db)):
+    borrower = db.get(Borrower, borrower_id)
+    if not borrower:
+        return RedirectResponse("/borrowers", status_code=HTTP_303_SEE_OTHER)
+    return render_workspace(request, db, view="borrowers", selected_borrower_id=borrower_id)
 
 
 def default_collection(db: Session) -> Collection:

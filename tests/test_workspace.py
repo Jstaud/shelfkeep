@@ -23,6 +23,9 @@ def test_workspace_is_three_panes(auth_client):
     assert "pane pane-inspect" in page.text
     assert "Collections" in page.text
     assert "Rooms" in page.text
+    assert "Borrowers" in page.text
+    assert "Out now" in page.text
+    assert 'data-media-filter="game"' in page.text
     assert 'class="nav-value"' in page.text
     _assert_stand_alone_chrome(page.text)
 
@@ -125,6 +128,59 @@ def test_workspace_js_resets_item_form_after_success():
     success = item_submit.split("const item = await api")[1].split("} catch")[0]
     assert "event.target.reset()" in success
     assert success.index("event.target.reset()") < success.index('closeSheet("add-item")')
+
+
+def test_type_chips_stay_hidden_when_display_flex_is_set():
+    css = Path("app/static/css/app.css").read_text(encoding="utf-8")
+    assert ".type-chips[hidden]" in css
+    assert "display: none" in css.split(".type-chips[hidden]")[1].split("}")[0]
+
+
+def test_workspace_js_filters_library_by_media_type():
+    script = Path("app/static/js/app.js").read_text(encoding="utf-8")
+    assert "state.mediaFilter = \"all\"" in script or "state.mediaFilter = 'all'" in script
+    render = script.split("function renderBooks(")[1].split("function ")[0]
+    assert "state.mediaFilter" in render
+    assert "book.media_type" in render
+
+
+def test_workspace_js_resets_catalog_sheet_on_close_and_new_add():
+    script = Path("app/static/js/app.js").read_text(encoding="utf-8")
+    close_fn = script.split('$("#add-book")?.addEventListener("close"')[1].split("});")[0]
+    assert "resetBookForm()" in close_fn
+    add_open = script.split("add.dataset.open = \"add-book\"")[1].split("openSheet(\"add-book\")")[0]
+    assert "resetBookForm()" in add_open
+
+
+def test_workspace_js_deletes_new_card_if_cover_upload_fails():
+    script = Path("app/static/js/app.js").read_text(encoding="utf-8")
+    cover = script.split('data.set("cover", cover.files[0])')[1].split("if (editId)")[0]
+    assert "catch (coverErr)" in cover
+    assert "if (!editId)" in cover
+    assert 'api(`/api/books/${book.id}`, { method: "DELETE" })' in cover
+    assert "throw coverErr" in cover
+
+
+def test_workspace_js_drops_loans_when_volume_or_item_is_deleted():
+    script = Path("app/static/js/app.js").read_text(encoding="utf-8")
+    assert "function dropLoansFor(" in script
+    book_delete = script.split("Remove this volume from the shelf?")[1].split(
+        "copy.querySelector(\".inspect-actions\")"
+    )[0]
+    assert 'dropLoansFor("book", book.id)' in book_delete
+    assert book_delete.index('dropLoansFor("book", book.id)') < book_delete.index("renderAll()")
+    item_delete = script.split("Remove this household item?")[1].split("actions.append(remove)")[0]
+    assert 'dropLoansFor("item", item.id)' in item_delete
+    assert item_delete.index('dropLoansFor("item", item.id)') < item_delete.index("renderAll()")
+
+
+def test_workspace_js_can_lend_and_return():
+    script = Path("app/static/js/app.js").read_text(encoding="utf-8")
+    assert "function appendLoanActions(" in script
+    assert "function markLoanReturned(" in script
+    assert "Lend this" in script
+    assert "Mark returned" in script
+    assert 'api(`/api/loans/${loanId}/return`' in script
 
 
 def test_workspace_js_stops_camera_if_scanner_setup_fails():
