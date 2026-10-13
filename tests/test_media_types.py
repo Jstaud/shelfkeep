@@ -86,6 +86,40 @@ def test_edit_catalog_item_and_upload_cover(auth_client):
     assert media.status_code == 200
 
 
+def test_put_stays_saved_when_cover_upload_fails(auth_client):
+    created = auth_client.post(
+        "/api/books",
+        json={"title": "Draft Atlas", "authors": "A. Writer", "media_type": "book"},
+    )
+    assert created.status_code == 201
+    book_id = created.json()["id"]
+    updated = auth_client.put(
+        f"/api/books/{book_id}",
+        json={
+            "title": "Revised Atlas",
+            "authors": "B. Editor",
+            "published_year": "1999",
+            "media_type": "book",
+        },
+    )
+    assert updated.status_code == 200
+    assert updated.json()["title"] == "Revised Atlas"
+
+    cover = auth_client.post(
+        f"/api/books/{book_id}/cover",
+        files={"cover": ("notes.txt", b"not an image", "text/plain")},
+    )
+    assert cover.status_code == 400
+
+    fetched = auth_client.get(f"/api/books/{book_id}")
+    assert fetched.status_code == 200
+    body = fetched.json()
+    assert body["title"] == "Revised Atlas"
+    assert body["authors"] == "B. Editor"
+    assert body["published_year"] == "1999"
+    assert body["cover_src"] is None
+
+
 def test_media_type_filter_rejects_unknown(auth_client):
     response = auth_client.get("/api/books", params={"media_type": "vhs"})
     assert response.status_code == 400

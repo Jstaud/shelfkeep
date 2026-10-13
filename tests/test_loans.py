@@ -158,6 +158,11 @@ def test_delete_book_clears_its_loans(auth_client):
     leftover = auth_client.get("/api/loans")
     assert leftover.status_code == 200
     assert all(row["id"] != loan.json()["id"] for row in leftover.json())
+    people = auth_client.get("/api/borrowers")
+    assert people.status_code == 200
+    morgan = next(row for row in people.json() if row["id"] == person["id"])
+    assert morgan["active_loan_count"] == 0
+    assert all(row["item_id"] != book["id"] for row in morgan["loans"])
 
 
 def test_active_loan_unique_index_blocks_direct_insert(auth_client):
