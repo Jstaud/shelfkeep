@@ -214,6 +214,18 @@ def test_workspace_js_can_lend_and_return():
     assert 'api(`/api/loans/${loanId}/return`' in script
 
 
+def test_service_worker_bumps_shell_cache_and_purges_old_ones():
+    script = Path("app/static/sw.js").read_text(encoding="utf-8")
+    assert 'const CACHE = "shelfkeep-shell-v11"' in script
+    assert "shelfkeep-shell-v10" not in script
+    activate = script.split('addEventListener("activate"')[1].split('addEventListener("fetch"')[0]
+    assert "caches.keys()" in activate
+    assert "caches.delete(key)" in activate
+    assert "key !== CACHE" in activate
+    assert "self.clients.claim()" in activate
+    assert activate.index("caches.delete(key)") < activate.index("self.clients.claim()")
+
+
 def test_workspace_js_stops_camera_if_scanner_setup_fails():
     script = Path("app/static/js/app.js").read_text(encoding="utf-8")
     setup_fail = script.split('alert("Camera is not available. Type the ISBN instead.")')[0][-280:]

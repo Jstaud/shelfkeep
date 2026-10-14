@@ -58,6 +58,8 @@ maintainer after merge.
   selection, and refreshes that person's loans.
 - Deleting a loaned volume or item drops its loans from the borrowers
   list without a reload.
+- The PWA shell cache is `shelfkeep-shell-v11`. Activation deletes older
+  shell caches so installed clients load this `app.js`.
 
 ## [1.0.0] - 2026-09-04
 
