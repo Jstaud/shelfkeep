@@ -440,7 +440,15 @@ function inspectBook(book) {
     dropLoansFor("book", book.id);
     state.selectedBookId = null;
     renderAll();
-    history.replaceState({}, "", "/");
+    if (state.view === "borrowers") {
+      history.replaceState(
+        {},
+        "",
+        state.selectedBorrowerId ? `/borrowers/${state.selectedBorrowerId}` : "/borrowers"
+      );
+    } else {
+      history.replaceState({}, "", "/");
+    }
   });
   copy.querySelector(".inspect-actions").append(remove);
   const edit = document.createElement("button");
@@ -514,8 +522,16 @@ function inspectItem(item) {
     dropLoansFor("item", item.id);
     state.selectedItemId = null;
     renderAll();
-    const roomId = item.room_id || room?.id || state.selectedRoomId;
-    if (roomId) history.replaceState({}, "", `/rooms/${roomId}`);
+    if (state.view === "borrowers") {
+      history.replaceState(
+        {},
+        "",
+        state.selectedBorrowerId ? `/borrowers/${state.selectedBorrowerId}` : "/borrowers"
+      );
+    } else {
+      const roomId = item.room_id || room?.id || state.selectedRoomId;
+      if (roomId) history.replaceState({}, "", `/rooms/${roomId}`);
+    }
   });
   actions.append(remove);
   appendLoanActions(actions, "item", item);
@@ -952,8 +968,14 @@ $("#manual-book")?.addEventListener("submit", async (event) => {
       } catch (coverErr) {
         if (!editId) {
           await api(`/api/books/${book.id}`, { method: "DELETE" }).catch(() => {});
+          throw coverErr;
         }
-        throw coverErr;
+        const index = state.books.findIndex((entry) => entry.id === book.id);
+        if (index >= 0) state.books[index] = { ...state.books[index], ...book };
+        else state.books = [book, ...state.books];
+        renderAll();
+        const detail = coverErr?.message ? ` ${coverErr.message}` : "";
+        throw new Error(`Metadata saved, but the cover did not.${detail}`);
       }
     }
     if (editId) {

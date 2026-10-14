@@ -8,32 +8,6 @@ maintainer after merge.
 
 ## [Unreleased]
 
-### Added
-
-- Library shelf types beyond books: movie, disc, and game, with a type
-  filter and manual add/edit. Books still look up through Open Library;
-  other types are entered by hand. Optional cover upload on the card.
-- Borrowers and loans: a left-nav people list, lend a catalog item or
-  household item, see who has what, and mark it returned. Local only —
-  no email, no accounts beyond the single operator login. Existing
-  SQLite/Postgres libraries pick up `books.media_type` on boot.
-
-### Fixed
-
-- Dismissing the shelf-card sheet (Esc or ×) clears edit state so the next
-  add creates a new card instead of PUTting the last edited one.
-- A failed cover upload after a new add deletes that card so retry does
-  not leave a duplicate.
-- Active loans are unique per catalog item or household item (partial
-  unique index on SQLite and Postgres).
-- Deleting a loaned volume or item drops its loans from the borrowers
-  list without a reload.
-- Deleting a book replaces the `/books/{id}` history entry with the library
-  URL (`/`), matching item-delete.
-- Oversized photo and receipt uploads are rejected at the ASGI layer before
-  FastAPI spools the multipart body. Per-file limits stay 10 MB (images) and
-  15 MB (receipts).
-
 ### Security
 
 - GHCR and release-binary workflows run only in `Jstaud/shelfkeep` (not
@@ -53,6 +27,39 @@ maintainer after merge.
 - README install options: Compose (primary), GHCR image, Linux/macOS binary.
   Standalone `docker run` binds `127.0.0.1`; macOS asset is arm64-only
   (Intel builds from source; no Rosetta claim).
+
+## [1.1.0] - 2026-10-13
+
+### Added
+
+- Borrowers and loans: a left-nav people list, lend a catalog item or
+  household item, see who has what, and mark it returned. One active loan
+  per catalog item or household item (partial unique index on SQLite and
+  Postgres). Local only — no email, no accounts beyond the single operator
+  login.
+- Movie, disc, and game shelf cards, with filter chips beside the library.
+  Books still look up through Open Library; other types are entered by hand.
+  Optional cover upload on the card. Existing SQLite/Postgres libraries pick
+  up `books.media_type` on boot.
+
+### Fixed
+
+- Oversized photo and receipt uploads are rejected at the ASGI layer before
+  multipart parsing. Per-file limits stay 10 MB (images) and 15 MB (receipts).
+- Deleting a book replaces the `/books/{id}` history entry with the library
+  URL (`/`).
+- Dismissing the shelf-card sheet (Esc or ×) clears edit state so the next
+  add creates a new card instead of PUTting the last edited one.
+- A failed cover upload after a new add deletes that card so retry does
+  not leave a duplicate. A failed cover upload after an edit keeps the saved
+  metadata on the shelf and reports that the cover did not upload.
+- Deleting a loan card from the borrowers view stays on
+  `/borrowers/{id}` (or `/borrowers` when nobody is selected), clears the
+  selection, and refreshes that person's loans.
+- Deleting a loaned volume or item drops its loans from the borrowers
+  list without a reload.
+- The PWA shell cache is `shelfkeep-shell-v11`. Activation deletes older
+  shell caches so installed clients load this `app.js`.
 
 ## [1.0.0] - 2026-09-04
 
@@ -85,5 +92,6 @@ No cloud account, no Kubernetes, no registry image required.
 - Uploaded files stay on local volumes; nothing is sent to a third-party
   store (covers are fetched from Open Library and cached locally)
 
-[Unreleased]: https://github.com/Jstaud/shelfkeep/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/Jstaud/shelfkeep/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/Jstaud/shelfkeep/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/Jstaud/shelfkeep/releases/tag/v1.0.0

@@ -161,6 +161,37 @@ def test_workspace_js_deletes_new_card_if_cover_upload_fails():
     assert "throw coverErr" in cover
 
 
+def test_workspace_js_reconciles_edited_card_when_cover_upload_fails():
+    script = Path("app/static/js/app.js").read_text(encoding="utf-8")
+    cover = script.split('data.set("cover", cover.files[0])')[1].split("if (editId)")[0]
+    edit_arm = cover.split("throw coverErr")[1]
+    assert "state.books[index] = { ...state.books[index], ...book }" in edit_arm
+    assert "renderAll()" in edit_arm
+    assert "Metadata saved, but the cover did not." in edit_arm
+    assert "DELETE" not in edit_arm
+    assert edit_arm.index("state.books[index]") < edit_arm.index("renderAll()")
+    assert edit_arm.index("renderAll()") < edit_arm.index("Metadata saved, but the cover did not.")
+
+
+def test_workspace_js_keeps_borrowers_route_after_loan_card_delete():
+    script = Path("app/static/js/app.js").read_text(encoding="utf-8")
+    book_delete = script.split("Remove this volume from the shelf?")[1].split(
+        "copy.querySelector(\".inspect-actions\")"
+    )[0]
+    assert 'state.view === "borrowers"' in book_delete
+    assert "state.selectedBookId = null" in book_delete
+    assert 'dropLoansFor("book", book.id)' in book_delete
+    assert "`/borrowers/${state.selectedBorrowerId}`" in book_delete
+    assert '"/borrowers"' in book_delete
+    assert book_delete.index('dropLoansFor("book", book.id)') < book_delete.index("state.selectedBookId = null")
+    assert book_delete.index("state.selectedBookId = null") < book_delete.index("history.replaceState")
+    borrowers_arm = book_delete.split('state.view === "borrowers"')[1].split("} else {")[0]
+    assert 'history.replaceState({}, "", "/")' not in borrowers_arm
+    item_delete = script.split("Remove this household item?")[1].split("actions.append(remove)")[0]
+    assert 'state.view === "borrowers"' in item_delete
+    assert "`/borrowers/${state.selectedBorrowerId}`" in item_delete
+
+
 def test_workspace_js_drops_loans_when_volume_or_item_is_deleted():
     script = Path("app/static/js/app.js").read_text(encoding="utf-8")
     assert "function dropLoansFor(" in script
@@ -181,6 +212,18 @@ def test_workspace_js_can_lend_and_return():
     assert "Lend this" in script
     assert "Mark returned" in script
     assert 'api(`/api/loans/${loanId}/return`' in script
+
+
+def test_service_worker_bumps_shell_cache_and_purges_old_ones():
+    script = Path("app/static/sw.js").read_text(encoding="utf-8")
+    assert 'const CACHE = "shelfkeep-shell-v11"' in script
+    assert "shelfkeep-shell-v10" not in script
+    activate = script.split('addEventListener("activate"')[1].split('addEventListener("fetch"')[0]
+    assert "caches.keys()" in activate
+    assert "caches.delete(key)" in activate
+    assert "key !== CACHE" in activate
+    assert "self.clients.claim()" in activate
+    assert activate.index("caches.delete(key)") < activate.index("self.clients.claim()")
 
 
 def test_workspace_js_stops_camera_if_scanner_setup_fails():

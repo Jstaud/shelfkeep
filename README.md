@@ -4,7 +4,7 @@ Self-hosted catalog for the things you keep: a library you browse like a room, a
 
 Add a book by ISBN, title, or by hand and see it on a wooden shelf with cover art. Walk rooms, photograph household items, and keep serial numbers, purchase dates, replacement values, and receipts — insurance-friendly without becoming a spreadsheet.
 
-Shelfkeep is a web app (responsive, installable as a PWA). It is not Mac-only. `docker compose up` is the happy path. There is no required cloud account. [MIT](LICENSE). See [CHANGELOG](CHANGELOG.md) for v1.0.0, [SECURITY](SECURITY.md) for the default-password warning, and [CONTRIBUTING](CONTRIBUTING.md) if you want to help.
+Shelfkeep is a web app (responsive, installable as a PWA). It is not Mac-only. `docker compose up` is the happy path. There is no required cloud account. [MIT](LICENSE). See [CHANGELOG](CHANGELOG.md) for v1.1.0, [SECURITY](SECURITY.md) for the default-password warning, and [CONTRIBUTING](CONTRIBUTING.md) if you want to help.
 
 ## Screenshots
 
