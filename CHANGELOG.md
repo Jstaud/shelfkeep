@@ -14,12 +14,19 @@ maintainer after merge.
   forks) and require the `release` GitHub Environment for package push
   and release-asset attach. PR CI is unchanged.
 
+### Changed
+
+- GitHub Actions use the current Node 24 majors. Linux jobs are pinned to
+  `ubuntu-24.04`; macOS stays `macos-15`. Release assets stay
+  `shelfkeep-linux-x86_64.tar.gz` and `shelfkeep-macos-arm64.tar.gz`, and
+  GHCR tags are unchanged.
+
 ### Added
 
 - GitHub Actions publishes `ghcr.io/jstaud/shelfkeep` on `v*` tags (also
   `latest`) and on `main`. Compose can pull that image via `SHELFKEEP_IMAGE`
   instead of `up --build`.
-- Linux (`ubuntu-latest`, x86_64) and macOS (`macos-15`, arm64) PyInstaller
+- Linux (`ubuntu-24.04`, x86_64) and macOS (`macos-15`, arm64) PyInstaller
   binaries attached to GitHub Releases on `v*` tags. `workflow_dispatch` can
   attach assets to an existing tag such as `v1.0.0`.
 - `shelfkeep` / `shelfkeep serve` CLI: binds `127.0.0.1:8080` by default,

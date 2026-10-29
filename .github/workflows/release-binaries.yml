@@ -27,7 +27,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: ubuntu-latest
+          - os: ubuntu-24.04
             artifact_os: linux
             artifact_arch: x86_64
           # Pin Apple Silicon explicitly. Bare macos-latest has been Intel
@@ -38,9 +38,9 @@ jobs:
             artifact_arch: arm64
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
 
@@ -81,7 +81,7 @@ jobs:
           packaging/build_archive.sh dist/shelfkeep "$stem"
           echo "stem=${stem}" >> "$GITHUB_OUTPUT"
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: ${{ steps.archive.outputs.stem }}
           path: dist/${{ steps.archive.outputs.stem }}.tar.gz
@@ -91,11 +91,11 @@ jobs:
     needs: build
     if: github.repository == 'Jstaud/shelfkeep' && (github.event_name == 'push' || inputs.attach_to_tag != '')
     environment: release
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: write
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           path: artifacts
           merge-multiple: true
@@ -109,7 +109,7 @@ jobs:
             echo "name=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
           fi
 
-      - uses: softprops/action-gh-release@v2
+      - uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ steps.tag.outputs.name }}
           files: artifacts/*.tar.gz
